@@ -2,18 +2,10 @@
 
 import { useMemo } from "react"
 import {
-  Lightbulb,
-  Sprout,
-  Recycle,
-  Tractor,
-  FlaskConical,
-  Mountain,
-  Database,
-  Download,
-  AlertTriangle,
-  CheckCircle2,
-  Leaf,
+  Lightbulb, Sprout, Recycle, Tractor, FlaskConical, Mountain,
+  Database, Download, AlertTriangle, CheckCircle2, Leaf, Link2, TreePine,
 } from "lucide-react"
+import Link from "next/link"
 import { PageShell, PageHeading } from "@/components/page-shell"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -21,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { getStats, getSimulatorStats, getRecommendations, type Recommendation } from "@/lib/soil-data"
 import { useSoil } from "@/lib/soil-context"
+import { useFarm } from "@/lib/farm-context"
 import { cn } from "@/lib/utils"
 
 const icons = [Recycle, Sprout, Tractor, FlaskConical, Mountain, Lightbulb]
@@ -31,11 +24,10 @@ const impactStyles: Record<Recommendation["impact"], string> = {
   Low:    "bg-secondary text-secondary-foreground",
 }
 
-const impactOrder: Record<Recommendation["impact"], number> = {
-  High: 0, Medium: 1, Low: 2,
-}
+const impactOrder: Record<Recommendation["impact"], number> = { High: 0, Medium: 1, Low: 2 }
 
 function downloadReport(
+  farmName: string,
   stats: ReturnType<typeof getStats>,
   sim: ReturnType<typeof getSimulatorStats>,
   recommendations: Recommendation[],
@@ -46,7 +38,8 @@ function downloadReport(
 ) {
   const date = new Date().toISOString().slice(0, 10)
   const lines = [
-    `Carbon Credit Estimator — Report (${date})`,
+    `Carbon Credit Estimator — Farm Report (${date})`,
+    `Farm: ${farmName}`,
     `Dataset: ${isUploadedData ? "Uploaded CSV" : "Sample SOC Dataset"} · ${sampleCount} samples`,
     "",
     "== SOIL ANALYSIS SUMMARY ==",
@@ -71,25 +64,27 @@ function downloadReport(
     "DISCLAIMER: Carbon credit estimates are intended for educational and analytical purposes only",
     "and should not be used for official carbon certification or financial decisions.",
   ]
-
   const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8;" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement("a")
   a.href = url
-  a.download = `carbon-report-${date}.txt`
+  a.download = `carbon-report-${farmName.replace(/\s+/g, "-").toLowerCase()}-${date}.txt`
   a.click()
   URL.revokeObjectURL(url)
 }
 
 export default function RecommendationsPage() {
   const { soilData, isUploadedData, farmArea, soilDepth } = useSoil()
-  const stats = useMemo(() => getStats(soilData), [soilData])
-  const sim   = useMemo(() => getSimulatorStats(soilData, farmArea, soilDepth), [soilData, farmArea, soilDepth])
+  const { selectedFarm, isLoaded } = useFarm()
+
+  const stats   = useMemo(() => getStats(soilData), [soilData])
+  const sim     = useMemo(() => getSimulatorStats(soilData, farmArea, soilDepth), [soilData, farmArea, soilDepth])
   const recommendations = useMemo(
     () => getRecommendations(stats).sort((a, b) => impactOrder[a.impact] - impactOrder[b.impact]),
     [stats],
   )
 
+  const farmName = selectedFarm?.name ?? "All Farms"
   const socLevel =
     stats.avgOrganicCarbon === null ? "Unknown"
     : stats.avgOrganicCarbon >= 2.5  ? "High"
@@ -106,36 +101,44 @@ export default function RecommendationsPage() {
       <PageHeading
         eyebrow="Recommendations & Report"
         title="Sustainability Recommendations"
-        description="Actionable guidance generated from current soil conditions, plus a summary report you can download."
+        description="Actionable guidance generated from current soil conditions, plus a farm-specific summary report."
       />
 
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
 
-        {/* ── Active dataset banner ─────────────────────────────────────────── */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div
-            className={cn(
-              "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium",
-              isUploadedData
-                ? "border-green-500/40 bg-green-500/8 text-green-700 dark:text-green-400"
-                : "border-primary/20 bg-primary/5 text-primary",
-            )}
-          >
-            <Database className="size-4 shrink-0" />
-            {isUploadedData ? "Using Uploaded Dataset" : "Using Sample SOC Dataset"}
-            <span className="ml-1 font-normal text-muted-foreground">
-              — {soilData.length} samples, avg SOC {stats.avgOrganicCarbon ?? "—"}%
-            </span>
+        {/* ── Farm banner ───────────────────────────────────────────────────── */}
+        {isLoaded && (
+          <div className={cn(
+            "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border px-4 py-3",
+            selectedFarm ? "border-primary/20 bg-primary/5" : "border-border bg-secondary/40",
+          )}>
+            <div className="flex items-center gap-3 text-sm">
+              {selectedFarm ? (
+                <>
+                  <Link2 className="size-4 shrink-0 text-primary" />
+                  <span className="font-medium text-primary">Currently Viewing: {selectedFarm.name}</span>
+                  <span className="font-normal text-muted-foreground">
+                    · {soilData.length} samples, avg SOC {stats.avgOrganicCarbon ?? "—"}%
+                  </span>
+                </>
+              ) : (
+                <>
+                  <TreePine className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="text-muted-foreground">No farm selected —</span>
+                  <Link href="/farms" className="font-medium text-primary hover:underline">select a farm</Link>
+                  <span className="text-muted-foreground">for farm-specific recommendations.</span>
+                </>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              className="gap-2 shrink-0"
+              onClick={() => downloadReport(farmName, stats, sim, recommendations, farmArea, soilDepth, soilData.length, isUploadedData)}
+            >
+              <Download className="size-4" /> Download Report
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            className="gap-2 shrink-0"
-            onClick={() => downloadReport(stats, sim, recommendations, farmArea, soilDepth, soilData.length, isUploadedData)}
-          >
-            <Download className="size-4" />
-            Download Report
-          </Button>
-        </div>
+        )}
 
         {/* ── Recommendation cards ─────────────────────────────────────────── */}
         <div>
@@ -145,6 +148,11 @@ export default function RecommendationsPage() {
               <span className={cn("rounded-md px-2 py-0.5 text-sm font-semibold", socColor)}>
                 {socLevel} SOC
               </span>
+              {selectedFarm && (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  — {selectedFarm.name}
+                </span>
+              )}
             </h2>
           </div>
           <div className="grid gap-5 md:grid-cols-2">
@@ -162,9 +170,7 @@ export default function RecommendationsPage() {
                       </Badge>
                     </div>
                     <h3 className="mt-4 text-base font-semibold">{rec.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                      {rec.description}
-                    </p>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{rec.description}</p>
                   </CardContent>
                 </Card>
               )
@@ -177,12 +183,11 @@ export default function RecommendationsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Leaf className="size-5 text-primary" />
-              Key Findings &amp; Summary
+              Key Findings — {farmName}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6 text-sm">
 
-            {/* Dataset observations */}
             <div>
               <p className="mb-3 font-semibold text-foreground">Major Soil Observations</p>
               <ul className="space-y-2 text-muted-foreground">
@@ -190,12 +195,12 @@ export default function RecommendationsPage() {
                   `${soilData.length} soil samples analysed across ${[...new Set(soilData.map((r) => r.region))].length} region(s).`,
                   `Average SOC of ${stats.avgOrganicCarbon ?? "—"}% — classified as ${socLevel}.`,
                   stats.avgPh !== null
-                    ? `Average pH ${stats.avgPh} — ${stats.avgPh < 5.5 ? "acidic, lime application recommended" : stats.avgPh > 7.5 ? "alkaline, monitor nutrient availability" : "within optimal range (5.5–7.5)"}.`
+                    ? `Average pH ${stats.avgPh} — ${stats.avgPh < 5.5 ? "acidic; lime recommended" : stats.avgPh > 7.5 ? "alkaline; monitor nutrients" : "within optimal range (5.5–7.5)"}.`
                     : null,
                   stats.avgClay !== null
-                    ? `Average clay content ${stats.avgClay}% — ${stats.avgClay < 15 ? "low, limited water retention" : stats.avgClay > 45 ? "high, drainage may be needed" : "suitable for carbon stabilisation"}.`
+                    ? `Average clay content ${stats.avgClay}% — ${stats.avgClay < 15 ? "low retention" : stats.avgClay > 45 ? "drainage may be needed" : "suitable for carbon stabilisation"}.`
                     : null,
-                  `Soil Quality Score: ${stats.soilQualityScore}/100 — ${stats.soilQualityScore >= 70 ? "above-average" : stats.soilQualityScore >= 50 ? "moderate" : "needs improvement"}.`,
+                  `Soil Quality Score: ${stats.soilQualityScore}/100.`,
                 ]
                   .filter(Boolean)
                   .map((obs) => (
@@ -209,14 +214,13 @@ export default function RecommendationsPage() {
 
             <Separator />
 
-            {/* Carbon credit potential */}
             <div>
               <p className="mb-3 font-semibold text-foreground">Estimated Carbon Credit Potential</p>
               <div className="grid gap-3 sm:grid-cols-3">
                 {[
-                  { label: "Carbon Stock",    value: `${sim.carbonStock} tC`,      sub: `at ${farmArea} ha · ${soilDepth} cm` },
-                  { label: "Carbon Credits",  value: `${sim.carbonCredits} tCO₂e`, sub: "Carbon Stock × 3.67"                },
-                  { label: "CO₂ Equivalent",  value: `${sim.co2Equivalent} tCO₂e`, sub: "atmospheric offset equivalent"     },
+                  { label: "Carbon Stock",   value: `${sim.carbonStock} tC`,       sub: `at ${farmArea} ha · ${soilDepth} cm`  },
+                  { label: "Carbon Credits", value: `${sim.carbonCredits} tCO₂e`,  sub: "Carbon Stock × 3.67"                  },
+                  { label: "CO₂ Equivalent", value: `${sim.co2Equivalent} tCO₂e`,  sub: "atmospheric offset equivalent"        },
                 ].map(({ label, value, sub }) => (
                   <div key={label} className="rounded-xl border bg-secondary/30 px-4 py-3">
                     <p className="text-xs text-muted-foreground">{label}</p>
@@ -226,7 +230,8 @@ export default function RecommendationsPage() {
                 ))}
               </div>
               <p className="mt-3 text-xs text-muted-foreground">
-                Adjust farm area and soil depth in the Simulator to explore different scenarios.
+                Adjust farm area and soil depth in the{" "}
+                <Link href="/simulator" className="text-primary hover:underline">Simulator</Link> to explore different scenarios.
               </p>
             </div>
           </CardContent>

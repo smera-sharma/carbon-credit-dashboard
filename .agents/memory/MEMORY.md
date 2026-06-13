@@ -1,0 +1,1 @@
+- [Base UI Dialog](base-ui-dialog.md) — uses `showCloseButton={false}` not `onInteractOutside`; Button needs `nativeButton={false}` when rendered as Link

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, type ReactNode } from "react"
 import { sampleSoilData, type SoilRecord } from "@/lib/soil-data"
+import { useFarm } from "@/lib/farm-context"
 
 type SoilContextValue = {
   soilData: SoilRecord[]
@@ -17,23 +18,47 @@ type SoilContextValue = {
 const SoilContext = createContext<SoilContextValue | null>(null)
 
 export function SoilProvider({ children }: { children: ReactNode }) {
-  const [uploadedData, setUploadedDataState] = useState<SoilRecord[] | null>(null)
-  const [farmArea, setFarmArea] = useState(5)
-  const [soilDepth, setSoilDepth] = useState(30)
+  const { selectedFarm, selectedFarmId, updateFarm } = useFarm()
+
+  // Standalone state — used when no farm is selected
+  const [localFarmArea, setLocalFarmArea]   = useState(5)
+  const [localSoilDepth, setLocalSoilDepth] = useState(30)
+  const [localUploaded, setLocalUploaded]   = useState<SoilRecord[] | null>(null)
+
+  const soilData      = selectedFarm?.soilData ?? localUploaded ?? sampleSoilData
+  const isUploadedData = selectedFarm
+    ? selectedFarm.datasetSource === "uploaded"
+    : localUploaded !== null
+  const farmArea  = selectedFarm?.farmArea  ?? localFarmArea
+  const soilDepth = selectedFarm?.soilDepth ?? localSoilDepth
+
+  function setFarmArea(area: number) {
+    if (selectedFarmId) updateFarm(selectedFarmId, { farmArea: area })
+    else setLocalFarmArea(area)
+  }
+
+  function setSoilDepth(depth: number) {
+    if (selectedFarmId) updateFarm(selectedFarmId, { soilDepth: depth })
+    else setLocalSoilDepth(depth)
+  }
 
   function setUploadedData(records: SoilRecord[]) {
-    setUploadedDataState(records)
+    if (selectedFarmId)
+      updateFarm(selectedFarmId, { datasetSource: "uploaded", uploadedRecords: records })
+    else setLocalUploaded(records)
   }
 
   function clearUploadedData() {
-    setUploadedDataState(null)
+    if (selectedFarmId)
+      updateFarm(selectedFarmId, { datasetSource: "sample", uploadedRecords: null })
+    else setLocalUploaded(null)
   }
 
   return (
     <SoilContext.Provider
       value={{
-        soilData: uploadedData ?? sampleSoilData,
-        isUploadedData: uploadedData !== null,
+        soilData,
+        isUploadedData,
         farmArea,
         setFarmArea,
         soilDepth,

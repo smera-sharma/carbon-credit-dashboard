@@ -20,7 +20,8 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart"
 import type { SoilRecord } from "@/lib/soil-data"
-import { UploadCloud } from "lucide-react"
+import type { FarmWithStats } from "@/lib/farm-context"
+import { UploadCloud, TreePine } from "lucide-react"
 
 // ─── Empty state ─────────────────────────────────────────────────────────────
 
@@ -158,7 +159,7 @@ export function SOCDistributionChart({ data }: { data: SoilRecord[] }) {
         <YAxis tickLine={false} axisLine={false} tickMargin={8} width={30} tick={{ fontSize: 11 }} allowDecimals={false} />
         <ChartTooltip content={<ChartTooltipContent />} />
         <Bar dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]}>
-          {counts.map((entry, i) => (
+          {counts.map((_, i) => (
             <Cell
               key={`cell-${i}`}
               fill={
@@ -194,7 +195,6 @@ export function SimulatorAreaChart({
   const chartData = areas.map((area) => ({
     area,
     credits: Math.round(avgSOC * area * (soilDepth / 30) * 3.67 * 100) / 100,
-    current: area === currentFarmArea ? Math.round(avgSOC * area * (soilDepth / 30) * 3.67 * 100) / 100 : undefined,
   }))
 
   return (
@@ -267,6 +267,53 @@ export function TopSitesBarChart({
         <YAxis type="category" dataKey="field" tickLine={false} axisLine={false} width={60} tick={{ fontSize: 11 }} />
         <ChartTooltip content={<ChartTooltipContent />} />
         <Bar dataKey="credits" fill="var(--color-credits)" radius={[0, 4, 4, 0]} maxBarSize={20} />
+      </BarChart>
+    </ChartContainer>
+  )
+}
+
+// ─── 6. Farm Portfolio Comparison Chart (dashboard) ──────────────────────────
+
+const farmCompConfig = {
+  credits: { label: "Carbon Credits (tCO₂e)", color: "var(--chart-1)" },
+} satisfies ChartConfig
+
+export function FarmComparisonChart({ farms }: { farms: FarmWithStats[] }) {
+  if (!farms.length) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border text-muted-foreground">
+        <TreePine className="size-8 opacity-40" />
+        <p className="text-sm">Add farms to see a portfolio comparison.</p>
+      </div>
+    )
+  }
+
+  const chartData = farms.map((f) => ({
+    name: f.name.length > 14 ? f.name.slice(0, 13) + "…" : f.name,
+    credits: f.carbonCredits,
+  }))
+
+  return (
+    <ChartContainer config={farmCompConfig} className="h-64 w-full">
+      <BarChart data={chartData} margin={{ left: 4, right: 8, top: 8, bottom: 0 }}>
+        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+        <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 11 }} />
+        <YAxis tickLine={false} axisLine={false} tickMargin={8} width={48} tick={{ fontSize: 11 }} />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Bar dataKey="credits" radius={[4, 4, 0, 0]} maxBarSize={52}>
+          {chartData.map((_, i) => (
+            <Cell
+              key={`cell-${i}`}
+              fill={
+                i % 5 === 0 ? "var(--chart-1)" :
+                i % 5 === 1 ? "var(--chart-2)" :
+                i % 5 === 2 ? "var(--chart-3)" :
+                i % 5 === 3 ? "var(--chart-4)" :
+                               "var(--chart-5)"
+              }
+            />
+          ))}
+        </Bar>
       </BarChart>
     </ChartContainer>
   )

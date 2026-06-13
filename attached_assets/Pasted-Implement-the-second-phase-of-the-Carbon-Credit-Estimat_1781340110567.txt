@@ -1,0 +1,184 @@
+Implement the second phase of the Carbon Credit Estimator Dashboard by introducing a Farm Portfolio system.
+
+The application should support a single farmer managing multiple farms.
+
+## 1. Farmer Profile
+
+Create a farmer profile setup page or modal that appears on first use.
+
+Allow the farmer to enter:
+
+* Full Name (required)
+* Email Address (optional)
+* Region/Location (optional)
+
+Store this information persistently using local storage.
+
+If a profile already exists, skip the setup process and load the saved information.
+
+Display the farmer's name in the application's navigation bar or dashboard header.
+
+---
+
+## 2. Farm Portfolio Management
+
+Create a dedicated "Farm Portfolio" page.
+
+Allow the farmer to:
+
+* Add a new farm
+* Edit existing farms
+* Delete farms
+* Select a farm for analysis
+
+Each farm should contain:
+
+* Unique ID
+* Farm Name (required)
+* Farm Area (hectares)
+* Soil Depth (cm, default 30)
+* Dataset Source
+* Creation Date
+* Estimated Carbon Credits
+
+Store all farms persistently using local storage.
+
+---
+
+## 3. Dataset Association
+
+When creating a farm:
+
+Option A:
+Use the built-in SOC sample dataset.
+
+Option B:
+Upload a compatible CSV dataset.
+
+If CSV upload functionality exists:
+
+Validate that the uploaded dataset contains one of the following mandatory SOC fields:
+
+* SOC_target
+* SOC
+* Organic_Carbon
+* Soil_Organic_Carbon
+
+If validation fails, show:
+
+"This dashboard requires Soil Organic Carbon (SOC) data to estimate carbon credits."
+
+If validation succeeds:
+
+Associate that dataset exclusively with the selected farm.
+
+---
+
+## 4. Farm Selection Logic
+
+Allow users to select an active farm from the Farm Portfolio page.
+
+Once a farm is selected:
+
+Update the following pages automatically:
+
+* Dashboard
+* Carbon Credit Simulator
+* Recommendations & Report
+
+All calculations, charts, recommendations, and statistics should operate ONLY on the currently selected farm.
+
+Display the currently selected farm prominently in the UI.
+
+Example:
+
+"Currently Viewing: Green Valley Farm"
+
+---
+
+## 5. Dashboard Enhancements
+
+Update the Dashboard page to display farm-level summaries.
+
+Display:
+
+* Total Number of Farms
+* Highest Carbon Credit Farm
+* Total Estimated Credits Across All Farms
+* Average SOC Across All Farms
+
+Add a comparison chart showing carbon credits for all farms.
+
+---
+
+## 6. Carbon Credit Simulator Enhancements
+
+When a farm is selected:
+
+Pre-populate the simulator with that farm's:
+
+* Farm Area
+* Soil Depth
+
+Allow users to adjust these values temporarily to explore different scenarios.
+
+Display:
+
+* Current Carbon Credits
+* Simulated Carbon Credits
+* Difference Between the Two
+
+Clearly distinguish between saved values and simulated values.
+
+---
+
+## 7. Recommendations & Report Enhancements
+
+Generate recommendations specifically for the selected farm.
+
+Create a farm-specific summary report containing:
+
+* Farm Name
+* Soil Health Summary
+* Estimated Carbon Credits
+* Key Recommendations
+
+Include a "Download Report" button placeholder.
+
+---
+
+## 8. Persistence Requirements
+
+Use local storage to persist:
+
+* Farmer Profile
+* Farms
+* Selected Farm
+* Farm Calculations
+* Uploaded Dataset Metadata
+
+Ensure that refreshing the browser restores the user's previous session.
+
+---
+
+## 9. User Experience
+
+If no farms exist:
+
+Display an onboarding empty state encouraging users to create their first farm.
+
+Example message:
+
+"Start your sustainability journey by adding your first farm."
+
+Provide a prominent "Add Farm" button.
+
+---
+
+## 10. Code Quality
+
+Use reusable components and maintain the existing design system.
+
+Preserve responsiveness across desktop and mobile devices.
+
+Explain all code changes after implementation and provide a list of modified files.
