@@ -222,10 +222,10 @@ export default function DashboardPage() {
 
               {uploadState.status === "idle" && (
                 <p className="text-xs text-muted-foreground">
-                  Expected columns (flexible naming):{" "}
-                  <span className="font-mono">
-                    field, region, organic_carbon, nitrogen, phosphorus, potassium, ph, moisture
-                  </span>
+                  SOC column required (flexible naming):{" "}
+                  <span className="font-mono">SOC_target, SOC, Organic_Carbon</span>
+                  {" "}· Optional:{" "}
+                  <span className="font-mono">pH_target, Clay_target, Altitude, Slope</span>
                 </p>
               )}
 
@@ -319,12 +319,11 @@ export default function DashboardPage() {
                   <TableRow>
                     <TableHead>Field</TableHead>
                     <TableHead>Region</TableHead>
-                    <TableHead className="text-right">Org. Carbon (%)</TableHead>
-                    <TableHead className="text-right">N (ppm)</TableHead>
-                    <TableHead className="text-right">P (ppm)</TableHead>
-                    <TableHead className="text-right">K (ppm)</TableHead>
+                    <TableHead className="text-right">SOC (%)</TableHead>
                     <TableHead className="text-right">pH</TableHead>
-                    <TableHead className="text-right">Moisture (%)</TableHead>
+                    <TableHead className="text-right">Clay (%)</TableHead>
+                    <TableHead className="text-right">Altitude (m)</TableHead>
+                    <TableHead className="text-right">Slope</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -340,11 +339,10 @@ export default function DashboardPage() {
                         <TableCell className="font-medium">{r.field}</TableCell>
                         <TableCell className="text-muted-foreground">{r.region}</TableCell>
                         <TableCell className="text-right">{r.organicCarbon ?? <span className="text-muted-foreground/50">—</span>}</TableCell>
-                        <TableCell className="text-right">{r.nitrogen      ?? <span className="text-muted-foreground/50">—</span>}</TableCell>
-                        <TableCell className="text-right">{r.phosphorus    ?? <span className="text-muted-foreground/50">—</span>}</TableCell>
-                        <TableCell className="text-right">{r.potassium     ?? <span className="text-muted-foreground/50">—</span>}</TableCell>
                         <TableCell className="text-right">{r.ph            ?? <span className="text-muted-foreground/50">—</span>}</TableCell>
-                        <TableCell className="text-right">{r.moisture      ?? <span className="text-muted-foreground/50">—</span>}</TableCell>
+                        <TableCell className="text-right">{r.clay          ?? <span className="text-muted-foreground/50">—</span>}</TableCell>
+                        <TableCell className="text-right">{r.altitude      ?? <span className="text-muted-foreground/50">—</span>}</TableCell>
+                        <TableCell className="text-right">{r.slope         ?? <span className="text-muted-foreground/50">—</span>}</TableCell>
                       </TableRow>
                     ))
                   )}

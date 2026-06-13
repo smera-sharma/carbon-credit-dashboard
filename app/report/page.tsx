@@ -21,22 +21,25 @@ import { getStats, getRecommendations, type SoilRecord } from "@/lib/soil-data"
 import { useSoil } from "@/lib/soil-context"
 
 function downloadCSV(soilData: SoilRecord[], stats: ReturnType<typeof getStats>, farmArea: number) {
-  const header = "Field,Region,Organic Carbon (%),Nitrogen (ppm),Phosphorus (ppm),Potassium (ppm),pH,Moisture (%),Est. Credits (t)"
+  const header = "Field,Region,SOC (%),pH,Clay (%),Altitude (m),Slope,Nitrogen (ppm),Phosphorus (ppm),Potassium (ppm),Moisture (%),Est. Credits (t)"
   const rows = soilData.map((r) => {
     const credits = r.organicCarbon !== null ? Number((r.organicCarbon * farmArea * 0.8).toFixed(2)) : ""
     const v = (x: number | null) => x ?? ""
-    return [r.field, r.region, v(r.organicCarbon), v(r.nitrogen), v(r.phosphorus), v(r.potassium), v(r.ph), v(r.moisture), credits].join(",")
+    return [r.field, r.region, v(r.organicCarbon), v(r.ph), v(r.clay), v(r.altitude), v(r.slope), v(r.nitrogen), v(r.phosphorus), v(r.potassium), v(r.moisture), credits].join(",")
   })
   const summary = [
     "",
     "REPORT SUMMARY",
     `Total Records,${stats.totalRecords}`,
-    `Avg Organic Carbon (%),${stats.avgOrganicCarbon}`,
-    `Avg Nitrogen (ppm),${stats.avgNitrogen}`,
-    `Avg Phosphorus (ppm),${stats.avgPhosphorus}`,
-    `Avg Potassium (ppm),${stats.avgPotassium}`,
-    `Avg pH,${stats.avgPh}`,
-    `Avg Moisture (%),${stats.avgMoisture}`,
+    `Avg SOC (%),${stats.avgOrganicCarbon ?? "—"}`,
+    `Avg pH,${stats.avgPh ?? "—"}`,
+    `Avg Clay (%),${stats.avgClay ?? "—"}`,
+    `Avg Altitude (m),${stats.avgAltitude ?? "—"}`,
+    `Avg Slope,${stats.avgSlope ?? "—"}`,
+    `Avg Nitrogen (ppm),${stats.avgNitrogen ?? "—"}`,
+    `Avg Phosphorus (ppm),${stats.avgPhosphorus ?? "—"}`,
+    `Avg Potassium (ppm),${stats.avgPotassium ?? "—"}`,
+    `Avg Moisture (%),${stats.avgMoisture ?? "—"}`,
     `Farm Area (ha),${farmArea}`,
     `Total Carbon Credits (t),${stats.carbonCredits}`,
     `CO2 Offset (t),${stats.co2Offset}`,
@@ -65,9 +68,9 @@ export default function ReportPage() {
       icon: Database,
     },
     {
-      label: "Avg Organic Carbon",
-      value: `${stats.avgOrganicCarbon}%`,
-      hint: "across all fields",
+      label: "Avg SOC",
+      value: stats.avgOrganicCarbon !== null ? `${stats.avgOrganicCarbon}%` : "—",
+      hint: "across all sites",
       icon: Sprout,
     },
     {
@@ -121,7 +124,7 @@ export default function ReportPage() {
                 Analysis of{" "}
                 <span className="font-medium text-foreground">{stats.totalRecords} soil samples</span>{" "}
                 shows an average organic carbon content of{" "}
-                <span className="font-medium text-foreground">{stats.avgOrganicCarbon}%</span> and
+                <span className="font-medium text-foreground">{stats.avgOrganicCarbon ?? "—"}%</span> and
                 an overall sustainability score of{" "}
                 <span className="font-medium text-foreground">{stats.sustainabilityScore}/100</span>.
                 Based on the {farmArea}-hectare farm area, the land has an estimated potential of{" "}
@@ -130,9 +133,8 @@ export default function ReportPage() {
                 <span className="font-medium text-foreground">{stats.co2Offset} tonnes</span> of CO₂.
               </p>
               <p>
-                Nutrient levels average {stats.avgNitrogen} ppm nitrogen, {stats.avgPhosphorus} ppm
-                phosphorus, and {stats.avgPotassium} ppm potassium, with a mean soil pH of{" "}
-                {stats.avgPh}. These indicators suggest{" "}
+                Average soil pH is {stats.avgPh ?? "—"}, clay content {stats.avgClay !== null ? `${stats.avgClay}%` : "—"}, and
+                average slope {stats.avgSlope ?? "—"}°. These indicators suggest{" "}
                 {stats.sustainabilityScore >= 70
                   ? "healthy, well-managed soils"
                   : "soils with meaningful room for improvement"}
@@ -146,7 +148,7 @@ export default function ReportPage() {
                 <p className="font-medium text-foreground">Key Insights</p>
                 <ul className="mt-2 space-y-2">
                   {[
-                    `Organic carbon of ${stats.avgOrganicCarbon}% drives the bulk of credit potential.`,
+                    `SOC of ${stats.avgOrganicCarbon ?? "—"}% drives the bulk of credit potential.`,
                     `Sustainability score of ${stats.sustainabilityScore}/100 — ${stats.sustainabilityScore >= 70 ? "above-average baseline" : "targeted improvements recommended"}.`,
                     `${recommendations.length} prioritised recommendations identified.`,
                     `Estimated ${stats.carbonCredits} t of tradeable credits at current conditions.`,
@@ -161,17 +163,17 @@ export default function ReportPage() {
 
               <Separator />
 
-              {/* Nutrient breakdown grid */}
+              {/* Soil averages grid */}
               <div>
                 <p className="font-medium text-foreground">Soil Averages</p>
                 <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {[
-                    { label: "Org. Carbon", value: `${stats.avgOrganicCarbon}%` },
-                    { label: "Nitrogen", value: `${stats.avgNitrogen} ppm` },
-                    { label: "Phosphorus", value: `${stats.avgPhosphorus} ppm` },
-                    { label: "Potassium", value: `${stats.avgPotassium} ppm` },
-                    { label: "pH", value: String(stats.avgPh) },
-                    { label: "Moisture", value: `${stats.avgMoisture}%` },
+                    { label: "SOC",       value: stats.avgOrganicCarbon !== null ? `${stats.avgOrganicCarbon}%` : "—" },
+                    { label: "pH",        value: stats.avgPh            !== null ? String(stats.avgPh)          : "—" },
+                    { label: "Clay",      value: stats.avgClay          !== null ? `${stats.avgClay}%`          : "—" },
+                    { label: "Altitude",  value: stats.avgAltitude      !== null ? `${stats.avgAltitude} m`     : "—" },
+                    { label: "Slope",     value: stats.avgSlope         !== null ? String(stats.avgSlope)       : "—" },
+                    { label: "Nitrogen",  value: stats.avgNitrogen      !== null ? `${stats.avgNitrogen} ppm`   : "—" },
                   ].map(({ label, value }) => (
                     <div key={label} className="rounded-lg bg-secondary/50 px-3 py-2.5">
                       <p className="text-xs text-muted-foreground">{label}</p>
@@ -199,7 +201,7 @@ export default function ReportPage() {
                 </p>
                 <Progress value={stats.sustainabilityScore} className="mt-4" />
                 <p className="mt-3 text-sm text-muted-foreground">
-                  Weighted across organic carbon, nutrients, moisture, and pH balance.
+                  Weighted across SOC, pH, clay content, and slope.
                 </p>
               </CardContent>
             </Card>
@@ -211,7 +213,7 @@ export default function ReportPage() {
               <CardContent className="space-y-1">
                 <p className="text-3xl font-semibold">{stats.carbonCredits} t</p>
                 <p className="text-sm text-primary-foreground/80">
-                  {stats.avgOrganicCarbon}% × {farmArea} ha × 0.8 factor
+                  {stats.avgOrganicCarbon ?? "—"}% × {farmArea} ha × 0.8 factor
                 </p>
               </CardContent>
             </Card>

@@ -11,15 +11,13 @@ import { cn } from "@/lib/utils"
 const icons = [Recycle, Sprout, Tractor, FlaskConical, Mountain, Lightbulb]
 
 const impactStyles: Record<Recommendation["impact"], string> = {
-  High: "bg-primary text-primary-foreground",
+  High:   "bg-primary text-primary-foreground",
   Medium: "bg-accent text-accent-foreground",
-  Low: "bg-secondary text-secondary-foreground",
+  Low:    "bg-secondary text-secondary-foreground",
 }
 
 const impactOrder: Record<Recommendation["impact"], number> = {
-  High: 0,
-  Medium: 1,
-  Low: 2,
+  High: 0, Medium: 1, Low: 2,
 }
 
 export default function RecommendationsPage() {
@@ -50,13 +48,13 @@ export default function RecommendationsPage() {
           <Database className="size-4 shrink-0" />
           {isUploadedData ? (
             <span>
-              Recommendations are based on your <strong>uploaded CSV</strong> ({soilData.length}{" "}
-              records, avg organic carbon {stats.avgOrganicCarbon}%).
+              Recommendations based on your <strong>uploaded CSV</strong> ({soilData.length} sites,
+              avg SOC {stats.avgOrganicCarbon ?? "—"}%).
             </span>
           ) : (
             <span>
-              Showing recommendations for the <strong>sample dataset</strong>. Upload a CSV on the
-              Dashboard to see personalised suggestions.
+              Showing recommendations for the <strong>sample SOC dataset</strong>. Upload your own
+              CSV on the Dashboard to see personalised suggestions.
             </span>
           )}
         </div>
@@ -94,9 +92,9 @@ export default function RecommendationsPage() {
               <div className="space-y-3">
                 <h3 className="text-base font-semibold">Why these recommendations?</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  With an average organic carbon of{" "}
-                  <strong className="text-foreground">{stats.avgOrganicCarbon}%</strong> and a
-                  sustainability score of{" "}
+                  With an average SOC of{" "}
+                  <strong className="text-foreground">{stats.avgOrganicCarbon ?? "—"}%</strong> and
+                  a sustainability score of{" "}
                   <strong className="text-foreground">{stats.sustainabilityScore}/100</strong>, the
                   actions above target the soil indicators with the most room for improvement.
                   Implementing the high-impact items first can meaningfully increase sequestered
@@ -104,9 +102,9 @@ export default function RecommendationsPage() {
                 </p>
                 <div className="grid gap-3 pt-1 sm:grid-cols-3">
                   {[
-                    { label: "Avg Nitrogen", value: `${stats.avgNitrogen} ppm` },
-                    { label: "Avg pH", value: String(stats.avgPh) },
-                    { label: "Avg Moisture", value: `${stats.avgMoisture}%` },
+                    { label: "Avg pH",   value: stats.avgPh   !== null ? String(stats.avgPh)   : "—" },
+                    { label: "Avg Clay", value: stats.avgClay !== null ? `${stats.avgClay}%`   : "—" },
+                    { label: "Avg Slope",value: stats.avgSlope!== null ? String(stats.avgSlope) : "—" },
                   ].map(({ label, value }) => (
                     <div key={label} className="rounded-lg bg-background/60 px-3 py-2">
                       <p className="text-xs text-muted-foreground">{label}</p>

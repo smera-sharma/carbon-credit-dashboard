@@ -8,19 +8,34 @@ export type ParseResult =
 const normalize = (s: string) =>
   s.toLowerCase().replace(/[\s_\-\.]+/g, "")
 
-// Columns that map to numeric SoilRecord fields — all optional.
-const COLUMN_MAP: Record<keyof Omit<SoilRecord, "id" | "field" | "region">, string[]> = {
-  organicCarbon: ["organiccarbon", "orgcarbon", "oc", "carbon", "soilcarbon", "soc"],
-  nitrogen:      ["nitrogen", "n", "totalnitrogen", "tn", "nitrogencontentppm"],
-  phosphorus:    ["phosphorus", "p", "totalphosphorus", "tp", "phosphorousppm"],
-  potassium:     ["potassium", "k", "totalpotassium", "tk", "potassiumppm"],
-  ph:            ["ph", "soilph", "phvalue", "acidlevel"],
-  moisture:      ["moisture", "watercontent", "soilmoisture", "moisturecontent", "humidity"],
+// ─── Column mappings ──────────────────────────────────────────────────────────
+// SOC is MANDATORY — must match one of these names.
+const SOC_NAMES = [
+  "soc_target", "soctarget",
+  "soc",
+  "organic_carbon", "organiccarbon", "orgcarbon",
+  "soil_organic_carbon", "soilorganiccarbon",
+  "oc", "carbon", "soilcarbon",
+]
+
+// All other numeric columns are optional.
+const OPTIONAL_NUMERIC: Record<
+  keyof Omit<SoilRecord, "id" | "field" | "region" | "organicCarbon">,
+  string[]
+> = {
+  ph:         ["ph_target", "phtarget", "ph", "soilph", "phvalue", "acidlevel"],
+  clay:       ["clay_target", "claytarget", "clay", "claycontent", "clay_pct"],
+  altitude:   ["altitude", "elevation", "alt", "height"],
+  slope:      ["slope", "gradient", "incline"],
+  nitrogen:   ["nitrogen", "n", "totalnitrogen", "tn", "nitrogencontentppm"],
+  phosphorus: ["phosphorus", "p", "totalphosphorus", "tp", "phosphorousppm"],
+  potassium:  ["potassium", "k", "totalpotassium", "tk", "potassiumppm"],
+  moisture:   ["moisture", "watercontent", "soilmoisture", "moisturecontent", "humidity"],
 }
 
-// String columns — also optional.
+// String columns (both optional).
 const STRING_MAP = {
-  field:  ["field", "fieldname", "name", "plot", "plotname", "sample", "samplename"],
+  field:  ["field", "fieldname", "name", "plot", "plotname", "sample", "samplename", "site"],
   region: ["region", "area", "zone", "location", "district", "county"],
 }
 
@@ -48,30 +63,30 @@ export function parseCSV(file: File): Promise<ParseResult> {
           return resolve({ ok: false, error: "The CSV file has no headers." })
         }
 
-        // Map string columns.
-        const fieldCol  = findColumn(rawHeaders, STRING_MAP.field)
-        const regionCol = findColumn(rawHeaders, STRING_MAP.region)
-
-        // Map numeric columns — each may be null if not found in the file.
-        type NumericKey = keyof typeof COLUMN_MAP
-        const numColMap = {} as Record<NumericKey, string | null>
-        const missingCols: string[] = []
-
-        for (const key of Object.keys(COLUMN_MAP) as NumericKey[]) {
-          const col = findColumn(rawHeaders, COLUMN_MAP[key])
-          numColMap[key] = col
-          if (!col) missingCols.push(key)
-        }
-
-        // If no recognisable columns were found at all, bail out.
-        const recognisedAny =
-          fieldCol || regionCol || Object.values(numColMap).some(Boolean)
-        if (!recognisedAny) {
+        // ── SOC is mandatory ────────────────────────────────────────────────
+        const socCol = findColumn(rawHeaders, SOC_NAMES)
+        if (!socCol) {
           return resolve({
             ok: false,
             error:
-              "None of the expected columns were found. Please check your CSV headers match: field, region, organic_carbon, nitrogen, phosphorus, potassium, ph, moisture.",
+              "This dashboard requires Soil Organic Carbon (SOC) data to estimate carbon credits. " +
+              "Please upload a compatible dataset or continue using the built-in sample dataset. " +
+              "(Expected column name: SOC_target, SOC, Organic_Carbon, or Soil_Organic_Carbon)",
           })
+        }
+
+        // ── String columns ──────────────────────────────────────────────────
+        const fieldCol  = findColumn(rawHeaders, STRING_MAP.field)
+        const regionCol = findColumn(rawHeaders, STRING_MAP.region)
+
+        // ── Optional numeric columns ────────────────────────────────────────
+        type NumKey = keyof typeof OPTIONAL_NUMERIC
+        const numColMap = {} as Record<NumKey, string | null>
+        const missingCols: string[] = []
+        for (const key of Object.keys(OPTIONAL_NUMERIC) as NumKey[]) {
+          const col = findColumn(rawHeaders, OPTIONAL_NUMERIC[key])
+          numColMap[key] = col
+          if (!col) missingCols.push(key)
         }
 
         const warnings: string[] = []
@@ -79,21 +94,24 @@ export function parseCSV(file: File): Promise<ParseResult> {
         if (!regionCol) warnings.push("No 'Region' column found — defaulting to 'Unknown'.")
         if (missingCols.length > 0) {
           warnings.push(
-            `Missing columns (will be excluded from calculations): ${missingCols.join(", ")}.`,
+            `Missing optional columns (excluded from calculations): ${missingCols.join(", ")}.`,
           )
         }
 
         const records: SoilRecord[] = (results.data as Record<string, unknown>[]).map(
           (row, i) => ({
-            id: i + 1,
-            field:  fieldCol  ? String(row[fieldCol]  ?? `Sample ${i + 1}`) : `Sample ${i + 1}`,
-            region: regionCol ? String(row[regionCol] ?? "Unknown")          : "Unknown",
-            organicCarbon: numColMap.organicCarbon ? num(row[numColMap.organicCarbon]) : null,
-            nitrogen:      numColMap.nitrogen      ? num(row[numColMap.nitrogen])      : null,
-            phosphorus:    numColMap.phosphorus    ? num(row[numColMap.phosphorus])    : null,
-            potassium:     numColMap.potassium     ? num(row[numColMap.potassium])     : null,
-            ph:            numColMap.ph            ? num(row[numColMap.ph])            : null,
-            moisture:      numColMap.moisture      ? num(row[numColMap.moisture])      : null,
+            id:            i + 1,
+            field:         fieldCol  ? String(row[fieldCol]  ?? `Site ${String(i + 1).padStart(3, "0")}`) : `Site ${String(i + 1).padStart(3, "0")}`,
+            region:        regionCol ? String(row[regionCol] ?? "Unknown") : "Unknown",
+            organicCarbon: num(row[socCol]),
+            ph:            numColMap.ph        ? num(row[numColMap.ph!])        : null,
+            clay:          numColMap.clay      ? num(row[numColMap.clay!])      : null,
+            altitude:      numColMap.altitude  ? num(row[numColMap.altitude!])  : null,
+            slope:         numColMap.slope     ? num(row[numColMap.slope!])     : null,
+            nitrogen:      numColMap.nitrogen  ? num(row[numColMap.nitrogen!])  : null,
+            phosphorus:    numColMap.phosphorus? num(row[numColMap.phosphorus!]): null,
+            potassium:     numColMap.potassium ? num(row[numColMap.potassium!]) : null,
+            moisture:      numColMap.moisture  ? num(row[numColMap.moisture!])  : null,
           }),
         )
 

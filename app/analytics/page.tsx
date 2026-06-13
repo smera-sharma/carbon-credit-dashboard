@@ -22,7 +22,7 @@ export default function AnalyticsPage() {
       <PageHeading
         eyebrow="Analytics"
         title="Soil & Sustainability Analytics"
-        description="Visualize organic carbon trends, nutrient balances by region, and the distribution of sustainability scores across your fields."
+        description="Visualize SOC trends, soil properties by region, and the distribution of sustainability scores across sampled sites."
       />
 
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-10 sm:px-6">
@@ -38,28 +38,28 @@ export default function AnalyticsPage() {
           <Database className="size-4 shrink-0" />
           {isUploadedData ? (
             <span>
-              Charts are powered by your <strong>uploaded CSV</strong> — {soilData.length} records,
-              avg organic carbon {stats.avgOrganicCarbon}%, sustainability score{" "}
+              Charts powered by your <strong>uploaded CSV</strong> — {soilData.length} records,
+              avg SOC {stats.avgOrganicCarbon ?? "—"}%, sustainability score{" "}
               {stats.sustainabilityScore}/100.
             </span>
           ) : (
             <span>
-              Showing <strong>sample dataset</strong>. Upload a CSV on the Dashboard for charts
-              based on your own soil data.
+              Showing <strong>sample SOC dataset</strong> (LimeSoDa, {soilData.length} sites).
+              Upload a CSV on the Dashboard for charts based on your own data.
             </span>
           )}
         </div>
 
-        {/* 1. Organic Carbon Line Chart — full width */}
+        {/* 1. SOC Line Chart — full width */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <LineChart className="size-5 text-primary" />
-              Organic Carbon by Field
+              Soil Organic Carbon by Site
             </CardTitle>
             <CardDescription>
-              Soil organic carbon (%) for each sampled field. Higher values indicate greater carbon
-              sequestration potential.
+              SOC (%) for each sampled site. Higher values indicate greater carbon sequestration
+              potential and more tradeable credits.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -67,16 +67,17 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        {/* 2. Nutrient Bar Chart + 3. Pie Chart — side by side */}
+        {/* 2. Soil Properties Bar + 3. Pie — side by side */}
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <BarChart3 className="size-5 text-primary" />
-                Nutrient Levels by Region
+                Soil Properties by Region
               </CardTitle>
               <CardDescription>
-                Average Nitrogen, Phosphorus, and Potassium (ppm) grouped by region.
+                Average SOC (%), Clay (%), and pH grouped by region — reveals how soil character
+                varies across the landscape.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -91,7 +92,8 @@ export default function AnalyticsPage() {
                 Sustainability Score Distribution
               </CardTitle>
               <CardDescription>
-                How fields are distributed across Excellent, Good, Fair, and Poor score bands.
+                How sites are distributed across Excellent, Good, Fair, and Poor score bands based
+                on SOC, pH, clay, and slope.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -103,10 +105,10 @@ export default function AnalyticsPage() {
         {/* Summary strip */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: "Avg Organic Carbon", value: `${stats.avgOrganicCarbon}%` },
-            { label: "Avg Nitrogen", value: `${stats.avgNitrogen} ppm` },
-            { label: "Avg Phosphorus", value: `${stats.avgPhosphorus} ppm` },
-            { label: "Avg Potassium", value: `${stats.avgPotassium} ppm` },
+            { label: "Avg SOC",      value: stats.avgOrganicCarbon !== null ? `${stats.avgOrganicCarbon}%` : "—" },
+            { label: "Avg pH",       value: stats.avgPh             !== null ? String(stats.avgPh)          : "—" },
+            { label: "Avg Clay",     value: stats.avgClay           !== null ? `${stats.avgClay}%`          : "—" },
+            { label: "Avg Altitude", value: stats.avgAltitude       !== null ? `${stats.avgAltitude} m`     : "—" },
           ].map(({ label, value }) => (
             <Card key={label}>
               <CardContent className="p-4">

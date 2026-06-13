@@ -38,15 +38,15 @@ function EmptyChart({ label }: { label: string }) {
   )
 }
 
-// ─── 1. Organic Carbon Line Chart ────────────────────────────────────────────
+// ─── 1. SOC Line Chart ────────────────────────────────────────────────────────
 
 const carbonConfig = {
-  organicCarbon: { label: "Organic Carbon (%)", color: "var(--chart-1)" },
+  organicCarbon: { label: "SOC (%)", color: "var(--chart-1)" },
 } satisfies ChartConfig
 
 export function CarbonLineChart({ data }: { data: SoilRecord[] }) {
   if (!data.length) {
-    return <EmptyChart label="Upload a dataset to see organic carbon values." />
+    return <EmptyChart label="Upload a dataset to see SOC values." />
   }
 
   const chartData = data.map((r) => ({
@@ -87,7 +87,7 @@ export function CarbonLineChart({ data }: { data: SoilRecord[] }) {
           stroke="var(--color-organicCarbon)"
           strokeWidth={2}
           fill="url(#fillCarbon)"
-          dot={chartData.length <= 20 ? { r: 3, fill: "var(--color-organicCarbon)" } : false}
+          dot={chartData.length <= 30 ? { r: 3, fill: "var(--color-organicCarbon)" } : false}
           activeDot={{ r: 5 }}
         />
       </AreaChart>
@@ -95,50 +95,54 @@ export function CarbonLineChart({ data }: { data: SoilRecord[] }) {
   )
 }
 
-// ─── 2. Nutrient Bar Chart (by region) ───────────────────────────────────────
+// ─── 2. Soil Properties Bar Chart (SOC & Clay by region) ─────────────────────
 
-const nutrientConfig = {
-  nitrogen: { label: "Nitrogen", color: "var(--chart-1)" },
-  phosphorus: { label: "Phosphorus", color: "var(--chart-2)" },
-  potassium: { label: "Potassium", color: "var(--chart-4)" },
+const soilPropsConfig = {
+  soc:  { label: "Avg SOC (%)",   color: "var(--chart-1)" },
+  clay: { label: "Avg Clay (%)",  color: "var(--chart-2)" },
+  ph:   { label: "Avg pH",        color: "var(--chart-4)" },
 } satisfies ChartConfig
 
-function buildNutrientData(records: SoilRecord[]) {
-  const map = new Map<string, { n: number; nCount: number; p: number; pCount: number; k: number; kCount: number }>()
+function buildSoilPropsData(records: SoilRecord[]) {
+  const map = new Map<string, {
+    soc: number; socCount: number
+    clay: number; clayCount: number
+    ph: number; phCount: number
+  }>()
   for (const r of records) {
     const key = r.region || "Unknown"
-    const e = map.get(key) ?? { n: 0, nCount: 0, p: 0, pCount: 0, k: 0, kCount: 0 }
-    if (r.nitrogen  !== null && isFinite(r.nitrogen))  { e.n += r.nitrogen;  e.nCount += 1 }
-    if (r.phosphorus !== null && isFinite(r.phosphorus)) { e.p += r.phosphorus; e.pCount += 1 }
-    if (r.potassium !== null && isFinite(r.potassium)) { e.k += r.potassium; e.kCount += 1 }
+    const e = map.get(key) ?? { soc: 0, socCount: 0, clay: 0, clayCount: 0, ph: 0, phCount: 0 }
+    if (r.organicCarbon !== null && isFinite(r.organicCarbon)) { e.soc  += r.organicCarbon; e.socCount  += 1 }
+    if (r.clay          !== null && isFinite(r.clay))          { e.clay += r.clay;          e.clayCount += 1 }
+    if (r.ph            !== null && isFinite(r.ph))            { e.ph   += r.ph;            e.phCount   += 1 }
     map.set(key, e)
   }
   return Array.from(map.entries()).map(([region, e]) => ({
-    region: region.length > 12 ? region.slice(0, 11) + "…" : region,
-    nitrogen:   e.nCount > 0 ? Math.round(e.n / e.nCount) : undefined,
-    phosphorus: e.pCount > 0 ? Math.round(e.p / e.pCount) : undefined,
-    potassium:  e.kCount > 0 ? Math.round(e.k / e.kCount) : undefined,
+    region:  region.length > 14 ? region.slice(0, 13) + "…" : region,
+    soc:     e.socCount  > 0 ? Math.round((e.soc  / e.socCount)  * 100) / 100 : undefined,
+    clay:    e.clayCount > 0 ? Math.round(e.clay  / e.clayCount)              : undefined,
+    ph:      e.phCount   > 0 ? Math.round((e.ph   / e.phCount)   * 100) / 100 : undefined,
   }))
 }
 
 export function NutrientBarChart({ data }: { data: SoilRecord[] }) {
   if (!data.length) {
-    return <EmptyChart label="Upload a dataset to see nutrient levels." />
+    return <EmptyChart label="Upload a dataset to see soil properties by region." />
   }
 
-  const chartData = buildNutrientData(data)
+  const chartData = buildSoilPropsData(data)
 
   return (
-    <ChartContainer config={nutrientConfig} className="h-72 w-full">
+    <ChartContainer config={soilPropsConfig} className="h-72 w-full">
       <BarChart data={chartData} margin={{ left: 4, right: 8, top: 8, bottom: 0 }}>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
         <XAxis dataKey="region" tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 11 }} />
         <YAxis tickLine={false} axisLine={false} tickMargin={8} width={36} tick={{ fontSize: 11 }} />
         <ChartTooltip content={<ChartTooltipContent />} />
         <ChartLegend content={<ChartLegendContent />} />
-        <Bar dataKey="nitrogen" fill="var(--color-nitrogen)" radius={[4, 4, 0, 0]} maxBarSize={32} />
-        <Bar dataKey="phosphorus" fill="var(--color-phosphorus)" radius={[4, 4, 0, 0]} maxBarSize={32} />
-        <Bar dataKey="potassium" fill="var(--color-potassium)" radius={[4, 4, 0, 0]} maxBarSize={32} />
+        <Bar dataKey="soc"  fill="var(--color-soc)"  radius={[4, 4, 0, 0]} maxBarSize={36} />
+        <Bar dataKey="clay" fill="var(--color-clay)" radius={[4, 4, 0, 0]} maxBarSize={36} />
+        <Bar dataKey="ph"   fill="var(--color-ph)"   radius={[4, 4, 0, 0]} maxBarSize={36} />
       </BarChart>
     </ChartContainer>
   )
@@ -147,27 +151,27 @@ export function NutrientBarChart({ data }: { data: SoilRecord[] }) {
 // ─── 3. Sustainability Score Pie Chart ────────────────────────────────────────
 
 const scoreConfig = {
-  count: { label: "Fields" },
-  excellent: { label: "Excellent (80+)", color: "var(--chart-1)" },
-  good: { label: "Good (60–79)", color: "var(--chart-2)" },
-  fair: { label: "Fair (40–59)", color: "var(--chart-4)" },
-  poor: { label: "Needs Work (<40)", color: "var(--chart-5)" },
+  count:     { label: "Sites" },
+  excellent: { label: "Excellent (80+)",  color: "var(--chart-1)" },
+  good:      { label: "Good (60–79)",     color: "var(--chart-2)" },
+  fair:      { label: "Fair (40–59)",     color: "var(--chart-4)" },
+  poor:      { label: "Needs Work (<40)", color: "var(--chart-5)" },
 } satisfies ChartConfig
 
 function buildScoreDistribution(records: SoilRecord[]) {
   const buckets = { excellent: 0, good: 0, fair: 0, poor: 0 }
   for (const r of records) {
     const { sustainabilityScore } = getStats([r], 1)
-    if (sustainabilityScore >= 80) buckets.excellent += 1
-    else if (sustainabilityScore >= 60) buckets.good += 1
-    else if (sustainabilityScore >= 40) buckets.fair += 1
-    else buckets.poor += 1
+    if      (sustainabilityScore >= 80) buckets.excellent += 1
+    else if (sustainabilityScore >= 60) buckets.good      += 1
+    else if (sustainabilityScore >= 40) buckets.fair      += 1
+    else                                buckets.poor      += 1
   }
   return [
-    { key: "excellent", label: "Excellent (80+)", count: buckets.excellent },
-    { key: "good", label: "Good (60–79)", count: buckets.good },
-    { key: "fair", label: "Fair (40–59)", count: buckets.fair },
-    { key: "poor", label: "Needs Work (<40)", count: buckets.poor },
+    { key: "excellent", label: "Excellent (80+)",  count: buckets.excellent },
+    { key: "good",      label: "Good (60–79)",     count: buckets.good      },
+    { key: "fair",      label: "Fair (40–59)",     count: buckets.fair      },
+    { key: "poor",      label: "Needs Work (<40)", count: buckets.poor      },
   ].filter((b) => b.count > 0)
 }
 
