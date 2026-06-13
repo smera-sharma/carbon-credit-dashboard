@@ -104,21 +104,20 @@ const nutrientConfig = {
 } satisfies ChartConfig
 
 function buildNutrientData(records: SoilRecord[]) {
-  const map = new Map<string, { n: number; p: number; k: number; count: number }>()
+  const map = new Map<string, { n: number; nCount: number; p: number; pCount: number; k: number; kCount: number }>()
   for (const r of records) {
     const key = r.region || "Unknown"
-    const e = map.get(key) ?? { n: 0, p: 0, k: 0, count: 0 }
-    if (isFinite(r.nitrogen)) e.n += r.nitrogen
-    if (isFinite(r.phosphorus)) e.p += r.phosphorus
-    if (isFinite(r.potassium)) e.k += r.potassium
-    e.count += 1
+    const e = map.get(key) ?? { n: 0, nCount: 0, p: 0, pCount: 0, k: 0, kCount: 0 }
+    if (r.nitrogen  !== null && isFinite(r.nitrogen))  { e.n += r.nitrogen;  e.nCount += 1 }
+    if (r.phosphorus !== null && isFinite(r.phosphorus)) { e.p += r.phosphorus; e.pCount += 1 }
+    if (r.potassium !== null && isFinite(r.potassium)) { e.k += r.potassium; e.kCount += 1 }
     map.set(key, e)
   }
   return Array.from(map.entries()).map(([region, e]) => ({
     region: region.length > 12 ? region.slice(0, 11) + "…" : region,
-    nitrogen: Math.round(e.n / e.count),
-    phosphorus: Math.round(e.p / e.count),
-    potassium: Math.round(e.k / e.count),
+    nitrogen:   e.nCount > 0 ? Math.round(e.n / e.nCount) : undefined,
+    phosphorus: e.pCount > 0 ? Math.round(e.p / e.pCount) : undefined,
+    potassium:  e.kCount > 0 ? Math.round(e.k / e.kCount) : undefined,
   }))
 }
 

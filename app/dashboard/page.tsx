@@ -339,12 +339,12 @@ export default function DashboardPage() {
                       <TableRow key={r.id}>
                         <TableCell className="font-medium">{r.field}</TableCell>
                         <TableCell className="text-muted-foreground">{r.region}</TableCell>
-                        <TableCell className="text-right">{r.organicCarbon}</TableCell>
-                        <TableCell className="text-right">{r.nitrogen}</TableCell>
-                        <TableCell className="text-right">{r.phosphorus}</TableCell>
-                        <TableCell className="text-right">{r.potassium}</TableCell>
-                        <TableCell className="text-right">{r.ph}</TableCell>
-                        <TableCell className="text-right">{r.moisture}</TableCell>
+                        <TableCell className="text-right">{r.organicCarbon ?? <span className="text-muted-foreground/50">—</span>}</TableCell>
+                        <TableCell className="text-right">{r.nitrogen      ?? <span className="text-muted-foreground/50">—</span>}</TableCell>
+                        <TableCell className="text-right">{r.phosphorus    ?? <span className="text-muted-foreground/50">—</span>}</TableCell>
+                        <TableCell className="text-right">{r.potassium     ?? <span className="text-muted-foreground/50">—</span>}</TableCell>
+                        <TableCell className="text-right">{r.ph            ?? <span className="text-muted-foreground/50">—</span>}</TableCell>
+                        <TableCell className="text-right">{r.moisture      ?? <span className="text-muted-foreground/50">—</span>}</TableCell>
                       </TableRow>
                     ))
                   )}

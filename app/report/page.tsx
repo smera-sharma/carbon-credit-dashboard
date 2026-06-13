@@ -23,8 +23,9 @@ import { useSoil } from "@/lib/soil-context"
 function downloadCSV(soilData: SoilRecord[], stats: ReturnType<typeof getStats>, farmArea: number) {
   const header = "Field,Region,Organic Carbon (%),Nitrogen (ppm),Phosphorus (ppm),Potassium (ppm),pH,Moisture (%),Est. Credits (t)"
   const rows = soilData.map((r) => {
-    const credits = Number((r.organicCarbon * farmArea * 0.8).toFixed(2))
-    return [r.field, r.region, r.organicCarbon, r.nitrogen, r.phosphorus, r.potassium, r.ph, r.moisture, credits].join(",")
+    const credits = r.organicCarbon !== null ? Number((r.organicCarbon * farmArea * 0.8).toFixed(2)) : ""
+    const v = (x: number | null) => x ?? ""
+    return [r.field, r.region, v(r.organicCarbon), v(r.nitrogen), v(r.phosphorus), v(r.potassium), v(r.ph), v(r.moisture), credits].join(",")
   })
   const summary = [
     "",
