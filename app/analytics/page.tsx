@@ -1,52 +1,21 @@
-import { LineChart, BarChart3, PieChart } from "lucide-react"
+"use client"
+
+import { useMemo } from "react"
+import { LineChart, BarChart3, PieChart, Database } from "lucide-react"
 import { PageShell, PageHeading } from "@/components/page-shell"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  CarbonTrendChart,
+  CarbonLineChart,
   NutrientBarChart,
   SustainabilityPieChart,
 } from "@/components/analytics-charts"
-import { sampleSoilData, getStats } from "@/lib/soil-data"
-
-function buildNutrientByRegion() {
-  const map = new Map<string, { n: number; p: number; k: number; count: number }>()
-  for (const r of sampleSoilData) {
-    const e = map.get(r.region) ?? { n: 0, p: 0, k: 0, count: 0 }
-    e.n += r.nitrogen
-    e.p += r.phosphorus
-    e.k += r.potassium
-    e.count += 1
-    map.set(r.region, e)
-  }
-  return Array.from(map.entries()).map(([region, e]) => ({
-    region,
-    nitrogen: Math.round(e.n / e.count),
-    phosphorus: Math.round(e.p / e.count),
-    potassium: Math.round(e.k / e.count),
-  }))
-}
-
-function buildScoreDistribution() {
-  // Per-field sustainability score using each record as a single-field dataset.
-  const buckets = { excellent: 0, good: 0, fair: 0, poor: 0 }
-  for (const r of sampleSoilData) {
-    const { sustainabilityScore } = getStats([r], 1)
-    if (sustainabilityScore >= 80) buckets.excellent += 1
-    else if (sustainabilityScore >= 60) buckets.good += 1
-    else if (sustainabilityScore >= 40) buckets.fair += 1
-    else buckets.poor += 1
-  }
-  return [
-    { key: "excellent", label: "Excellent (80+)", count: buckets.excellent },
-    { key: "good", label: "Good (60-79)", count: buckets.good },
-    { key: "fair", label: "Fair (40-59)", count: buckets.fair },
-    { key: "poor", label: "Needs Work (<40)", count: buckets.poor },
-  ].filter((b) => b.count > 0)
-}
+import { useSoil } from "@/lib/soil-context"
+import { getStats } from "@/lib/soil-data"
+import { cn } from "@/lib/utils"
 
 export default function AnalyticsPage() {
-  const nutrientData = buildNutrientByRegion()
-  const scoreData = buildScoreDistribution()
+  const { soilData, isUploadedData, farmArea } = useSoil()
+  const stats = useMemo(() => getStats(soilData, farmArea), [soilData, farmArea])
 
   return (
     <PageShell>
@@ -57,19 +26,48 @@ export default function AnalyticsPage() {
       />
 
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-10 sm:px-6">
+        {/* Data source banner */}
+        <div
+          className={cn(
+            "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm",
+            isUploadedData
+              ? "border-green-500/30 bg-green-500/5 text-green-700 dark:text-green-400"
+              : "border-border bg-secondary/30 text-muted-foreground",
+          )}
+        >
+          <Database className="size-4 shrink-0" />
+          {isUploadedData ? (
+            <span>
+              Charts are powered by your <strong>uploaded CSV</strong> — {soilData.length} records,
+              avg organic carbon {stats.avgOrganicCarbon}%, sustainability score{" "}
+              {stats.sustainabilityScore}/100.
+            </span>
+          ) : (
+            <span>
+              Showing <strong>sample dataset</strong>. Upload a CSV on the Dashboard for charts
+              based on your own soil data.
+            </span>
+          )}
+        </div>
+
+        {/* 1. Organic Carbon Line Chart — full width */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <LineChart className="size-5 text-primary" />
-              Organic Carbon Trend
+              Organic Carbon by Field
             </CardTitle>
-            <CardDescription>Monthly average soil organic carbon (%) over the year.</CardDescription>
+            <CardDescription>
+              Soil organic carbon (%) for each sampled field. Higher values indicate greater carbon
+              sequestration potential.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <CarbonTrendChart />
+            <CarbonLineChart data={soilData} />
           </CardContent>
         </Card>
 
+        {/* 2. Nutrient Bar Chart + 3. Pie Chart — side by side */}
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
@@ -77,10 +75,12 @@ export default function AnalyticsPage() {
                 <BarChart3 className="size-5 text-primary" />
                 Nutrient Levels by Region
               </CardTitle>
-              <CardDescription>Average Nitrogen, Phosphorus, and Potassium (ppm).</CardDescription>
+              <CardDescription>
+                Average Nitrogen, Phosphorus, and Potassium (ppm) grouped by region.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <NutrientBarChart data={nutrientData} />
+              <NutrientBarChart data={soilData} />
             </CardContent>
           </Card>
 
@@ -90,12 +90,31 @@ export default function AnalyticsPage() {
                 <PieChart className="size-5 text-primary" />
                 Sustainability Score Distribution
               </CardTitle>
-              <CardDescription>How fields are distributed across score bands.</CardDescription>
+              <CardDescription>
+                How fields are distributed across Excellent, Good, Fair, and Poor score bands.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <SustainabilityPieChart data={scoreData} />
+              <SustainabilityPieChart data={soilData} />
             </CardContent>
           </Card>
+        </div>
+
+        {/* Summary strip */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: "Avg Organic Carbon", value: `${stats.avgOrganicCarbon}%` },
+            { label: "Avg Nitrogen", value: `${stats.avgNitrogen} ppm` },
+            { label: "Avg Phosphorus", value: `${stats.avgPhosphorus} ppm` },
+            { label: "Avg Potassium", value: `${stats.avgPotassium} ppm` },
+          ].map(({ label, value }) => (
+            <Card key={label}>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">{label}</p>
+                <p className="mt-1 text-xl font-semibold text-primary">{value}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     </PageShell>
