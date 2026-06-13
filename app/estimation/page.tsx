@@ -1,41 +1,78 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { Coins, Cloud, Sprout, Ruler, TreePine, Car } from "lucide-react"
+import { useMemo, useState, useEffect } from "react"
+import { Coins, Cloud, Sprout, Ruler, TreePine, Car, Database } from "lucide-react"
 import { PageShell, PageHeading } from "@/components/page-shell"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { sampleSoilData, getStats, CARBON_CREDIT_FACTOR } from "@/lib/soil-data"
+import { getStats, CARBON_CREDIT_FACTOR } from "@/lib/soil-data"
+import { useSoil } from "@/lib/soil-context"
+import { cn } from "@/lib/utils"
 
 export default function EstimationPage() {
-  const baseStats = useMemo(() => getStats(sampleSoilData, 1), [])
+  const { soilData, isUploadedData, farmArea: contextFarmArea, setFarmArea: setContextFarmArea } = useSoil()
+
+  const baseStats = useMemo(() => getStats(soilData, 1), [soilData])
   const [organicCarbon, setOrganicCarbon] = useState(baseStats.avgOrganicCarbon)
-  const [farmArea, setFarmArea] = useState(120)
+  const [farmArea, setFarmArea] = useState(contextFarmArea)
+
+  useEffect(() => {
+    setOrganicCarbon(baseStats.avgOrganicCarbon)
+  }, [baseStats.avgOrganicCarbon])
+
+  function handleFarmAreaChange(val: number) {
+    setFarmArea(val)
+    setContextFarmArea(val)
+  }
 
   const credits = Number((organicCarbon * farmArea * CARBON_CREDIT_FACTOR).toFixed(1))
-  const co2Offset = credits // 1 credit ~= 1 tonne CO2e
-  const treesEquivalent = Math.round((co2Offset * 1000) / 21) // ~21kg CO2/tree/yr
-  const carsEquivalent = Math.round(co2Offset / 4.6) // ~4.6 t CO2/car/yr
+  const co2Offset = credits
+  const treesEquivalent = Math.round((co2Offset * 1000) / 21)
+  const carsEquivalent = Math.round(co2Offset / 4.6)
 
   return (
     <PageShell>
       <PageHeading
         eyebrow="Carbon Estimation"
         title="Estimate Your Carbon Credits"
-        description="Carbon credits are calculated from average soil organic carbon and farm area. Adjust the inputs to see how potential credits and CO2 offsets change."
+        description="Carbon credits are calculated from average soil organic carbon and farm area. Adjust the inputs to see how potential credits and CO₂ offsets change."
       />
 
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
+        {/* Data source banner */}
+        <div
+          className={cn(
+            "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm",
+            isUploadedData
+              ? "border-green-500/30 bg-green-500/5 text-green-700 dark:text-green-400"
+              : "border-border bg-secondary/30 text-muted-foreground",
+          )}
+        >
+          <Database className="size-4 shrink-0" />
+          {isUploadedData ? (
+            <span>
+              Seeded from your <strong>uploaded CSV</strong> — avg organic carbon{" "}
+              <strong>{baseStats.avgOrganicCarbon}%</strong> across {soilData.length} records. You
+              can still adjust the inputs below.
+            </span>
+          ) : (
+            <span>
+              Using <strong>sample dataset</strong> averages. Upload a CSV on the Dashboard to
+              pre-fill with your own soil data.
+            </span>
+          )}
+        </div>
+
         {/* Formula */}
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="p-6 sm:p-8">
             <p className="text-sm font-medium uppercase tracking-wider text-primary">Formula</p>
             <p className="mt-3 text-balance text-xl font-semibold sm:text-2xl">
-              Carbon Credits = Organic Carbon {"\u00D7"} Farm Area {"\u00D7"} 0.8
+              Carbon Credits = Organic Carbon × Farm Area × 0.8
             </p>
             <p className="mt-3 max-w-2xl text-pretty leading-relaxed text-muted-foreground">
               Average soil organic carbon (%) is multiplied by the total farm area (hectares) and a
-              0.8 sequestration factor to estimate tradeable carbon credits in tonnes of CO2
+              0.8 sequestration factor to estimate tradeable carbon credits in tonnes of CO₂
               equivalent.
             </p>
           </CardContent>
@@ -49,7 +86,10 @@ export default function EstimationPage() {
             </CardHeader>
             <CardContent className="space-y-5">
               <div>
-                <label htmlFor="oc" className="flex items-center gap-2 text-sm text-muted-foreground">
+                <label
+                  htmlFor="oc"
+                  className="flex items-center gap-2 text-sm text-muted-foreground"
+                >
                   <Sprout className="size-4 text-primary" /> Organic Carbon (%)
                 </label>
                 <Input
@@ -61,9 +101,17 @@ export default function EstimationPage() {
                   onChange={(e) => setOrganicCarbon(Math.max(0, Number(e.target.value)))}
                   className="mt-2"
                 />
+                {isUploadedData && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Pre-filled from CSV avg ({baseStats.avgOrganicCarbon}%)
+                  </p>
+                )}
               </div>
               <div>
-                <label htmlFor="area" className="flex items-center gap-2 text-sm text-muted-foreground">
+                <label
+                  htmlFor="area"
+                  className="flex items-center gap-2 text-sm text-muted-foreground"
+                >
                   <Ruler className="size-4 text-primary" /> Farm Area (hectares)
                 </label>
                 <Input
@@ -71,12 +119,12 @@ export default function EstimationPage() {
                   type="number"
                   min={0}
                   value={farmArea}
-                  onChange={(e) => setFarmArea(Math.max(0, Number(e.target.value)))}
+                  onChange={(e) => handleFarmAreaChange(Math.max(0, Number(e.target.value)))}
                   className="mt-2"
                 />
               </div>
               <div className="rounded-lg bg-secondary/50 p-4 text-sm text-muted-foreground">
-                {organicCarbon} {"\u00D7"} {farmArea} {"\u00D7"} 0.8 ={" "}
+                {organicCarbon} × {farmArea} × 0.8 ={" "}
                 <span className="font-semibold text-foreground">{credits} t</span>
               </div>
             </CardContent>
@@ -99,7 +147,7 @@ export default function EstimationPage() {
                 <span className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <Cloud className="size-5" />
                 </span>
-                <p className="mt-4 text-sm text-muted-foreground">CO{"\u2082"} Offset Equivalent</p>
+                <p className="mt-4 text-sm text-muted-foreground">CO₂ Offset Equivalent</p>
                 <p className="mt-1 text-3xl font-semibold">{co2Offset} t</p>
               </CardContent>
             </Card>

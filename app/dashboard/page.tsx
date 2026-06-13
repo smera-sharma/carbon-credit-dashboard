@@ -29,7 +29,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { sampleSoilData, getStats, type SoilRecord } from "@/lib/soil-data"
+import { getStats } from "@/lib/soil-data"
+import { useSoil } from "@/lib/soil-context"
 import { parseCSV } from "@/lib/csv-parser"
 
 const PAGE_SIZE = 6
@@ -41,23 +42,23 @@ type UploadState =
   | { status: "error"; message: string }
 
 export default function DashboardPage() {
-  const [farmArea, setFarmArea] = useState(120)
+  const { soilData, isUploadedData, farmArea, setFarmArea, setUploadedData, clearUploadedData } =
+    useSoil()
+
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
   const [isDragging, setIsDragging] = useState(false)
   const [uploadState, setUploadState] = useState<UploadState>({ status: "idle" })
-  const [csvData, setCsvData] = useState<SoilRecord[] | null>(null)
 
-  const activeData = csvData ?? sampleSoilData
-  const stats = useMemo(() => getStats(activeData, farmArea), [activeData, farmArea])
+  const stats = useMemo(() => getStats(soilData, farmArea), [soilData, farmArea])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return activeData
-    return activeData.filter(
+    if (!q) return soilData
+    return soilData.filter(
       (r) => r.field.toLowerCase().includes(q) || r.region.toLowerCase().includes(q),
     )
-  }, [search, activeData])
+  }, [search, soilData])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
@@ -78,7 +79,7 @@ export default function DashboardPage() {
       return
     }
 
-    setCsvData(result.records)
+    setUploadedData(result.records)
     setUploadState({
       status: "success",
       fileName: file.name,
@@ -88,7 +89,7 @@ export default function DashboardPage() {
   }
 
   function clearUpload() {
-    setCsvData(null)
+    clearUploadedData()
     setUploadState({ status: "idle" })
     setSearch("")
     setPage(1)
@@ -98,7 +99,7 @@ export default function DashboardPage() {
     {
       label: "Total Records Analyzed",
       value: String(stats.totalRecords),
-      hint: csvData ? "from uploaded CSV" : "soil samples in dataset",
+      hint: isUploadedData ? "from uploaded CSV" : "soil samples in dataset",
       icon: Database,
     },
     {
@@ -110,7 +111,7 @@ export default function DashboardPage() {
     {
       label: "Estimated Carbon Credits",
       value: `${stats.carbonCredits} t`,
-      hint: `for ${farmArea} ha`,
+      hint: `for ${farmArea} ha · OC × area × 0.8`,
       icon: Coins,
     },
     {
@@ -201,7 +202,7 @@ export default function DashboardPage() {
                     ? uploadState.message
                     : uploadState.status === "success"
                       ? "Drop a new file to replace, or clear to return to sample data."
-                      : "Supports .csv up to 10 MB. Flexible column names — see examples below."}
+                      : "Supports .csv up to 10 MB. Flexible column names accepted."}
                 </p>
 
                 {uploadState.status === "success" && uploadState.warnings.length > 0 && (
@@ -222,7 +223,9 @@ export default function DashboardPage() {
               {uploadState.status === "idle" && (
                 <p className="text-xs text-muted-foreground">
                   Expected columns (flexible naming):{" "}
-                  <span className="font-mono">field, region, organic_carbon, nitrogen, phosphorus, potassium, ph, moisture</span>
+                  <span className="font-mono">
+                    field, region, organic_carbon, nitrogen, phosphorus, potassium, ph, moisture
+                  </span>
                 </p>
               )}
 
@@ -241,7 +244,7 @@ export default function DashboardPage() {
                   {uploadState.status === "success" && (
                     <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                       <FileSpreadsheet className="size-3.5 text-primary" />
-                      Showing live CSV data
+                      Live CSV data · shared across all pages
                     </span>
                   )}
                 </div>
@@ -249,6 +252,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
+          {/* Farm area */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Farm Area</CardTitle>
@@ -268,16 +272,16 @@ export default function DashboardPage() {
                 />
               </div>
               <div className="rounded-lg bg-secondary/50 p-4">
-                <p className="text-xs text-muted-foreground">Estimated credits at current area</p>
-                <p className="mt-1 text-2xl font-semibold text-primary">
-                  {stats.carbonCredits} t
+                <p className="text-xs text-muted-foreground">
+                  Carbon Credits = {stats.avgOrganicCarbon}% × {farmArea} ha × 0.8
                 </p>
+                <p className="mt-1 text-2xl font-semibold text-primary">{stats.carbonCredits} t</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Summary cards */}
+        {/* Summary stat cards */}
         <StatGrid items={statItems} />
 
         {/* Dataset table */}
@@ -285,7 +289,7 @@ export default function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
             <div className="flex items-center gap-2">
               <CardTitle className="text-base">Dataset Preview</CardTitle>
-              {csvData ? (
+              {isUploadedData ? (
                 <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
                   CSV
                 </span>
