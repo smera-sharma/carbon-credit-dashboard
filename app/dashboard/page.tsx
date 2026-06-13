@@ -12,6 +12,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  AlertCircle,
+  CheckCircle2,
+  X,
 } from "lucide-react"
 import { PageShell, PageHeading } from "@/components/page-shell"
 import { StatGrid } from "@/components/stat-card"
@@ -26,46 +29,76 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { sampleSoilData, getStats } from "@/lib/soil-data"
+import { sampleSoilData, getStats, type SoilRecord } from "@/lib/soil-data"
+import { parseCSV } from "@/lib/csv-parser"
 
 const PAGE_SIZE = 6
+
+type UploadState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; fileName: string; recordCount: number; warnings: string[] }
+  | { status: "error"; message: string }
 
 export default function DashboardPage() {
   const [farmArea, setFarmArea] = useState(120)
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
   const [isDragging, setIsDragging] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [fileName, setFileName] = useState<string | null>(null)
+  const [uploadState, setUploadState] = useState<UploadState>({ status: "idle" })
+  const [csvData, setCsvData] = useState<SoilRecord[] | null>(null)
 
-  const stats = useMemo(() => getStats(sampleSoilData, farmArea), [farmArea])
+  const activeData = csvData ?? sampleSoilData
+  const stats = useMemo(() => getStats(activeData, farmArea), [activeData, farmArea])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return sampleSoilData
-    return sampleSoilData.filter(
+    if (!q) return activeData
+    return activeData.filter(
       (r) => r.field.toLowerCase().includes(q) || r.region.toLowerCase().includes(q),
     )
-  }, [search])
+  }, [search, activeData])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
   const rows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
-  function simulateUpload(name: string) {
-    setLoading(true)
-    setFileName(null)
-    setTimeout(() => {
-      setLoading(false)
-      setFileName(name)
-    }, 1200)
+  async function handleFile(file: File) {
+    if (!file.name.endsWith(".csv")) {
+      setUploadState({ status: "error", message: "Only .csv files are supported." })
+      return
+    }
+    setUploadState({ status: "loading" })
+    setSearch("")
+    setPage(1)
+
+    const result = await parseCSV(file)
+    if (!result.ok) {
+      setUploadState({ status: "error", message: result.error })
+      return
+    }
+
+    setCsvData(result.records)
+    setUploadState({
+      status: "success",
+      fileName: file.name,
+      recordCount: result.records.length,
+      warnings: result.warnings,
+    })
+  }
+
+  function clearUpload() {
+    setCsvData(null)
+    setUploadState({ status: "idle" })
+    setSearch("")
+    setPage(1)
   }
 
   const statItems = [
     {
       label: "Total Records Analyzed",
       value: String(stats.totalRecords),
-      hint: "soil samples in dataset",
+      hint: csvData ? "from uploaded CSV" : "soil samples in dataset",
       icon: Database,
     },
     {
@@ -103,7 +136,7 @@ export default function DashboardPage() {
             <CardHeader>
               <CardTitle className="text-base">Upload Dataset</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               <label
                 onDragOver={(e) => {
                   e.preventDefault()
@@ -114,12 +147,16 @@ export default function DashboardPage() {
                   e.preventDefault()
                   setIsDragging(false)
                   const f = e.dataTransfer.files?.[0]
-                  simulateUpload(f ? f.name : "soil-samples.csv")
+                  if (f) handleFile(f)
                 }}
                 className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors ${
                   isDragging
                     ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/50 hover:bg-secondary/40"
+                    : uploadState.status === "error"
+                      ? "border-destructive/50 bg-destructive/5"
+                      : uploadState.status === "success"
+                        ? "border-green-500/50 bg-green-500/5"
+                        : "border-border hover:border-primary/50 hover:bg-secondary/40"
                 }`}
               >
                 <input
@@ -128,31 +165,87 @@ export default function DashboardPage() {
                   className="sr-only"
                   onChange={(e) => {
                     const f = e.target.files?.[0]
-                    if (f) simulateUpload(f.name)
+                    if (f) handleFile(f)
+                    e.target.value = ""
                   }}
                 />
-                {loading ? (
+
+                {uploadState.status === "loading" ? (
                   <Loader2 className="size-8 animate-spin text-primary" />
+                ) : uploadState.status === "success" ? (
+                  <span className="flex size-12 items-center justify-center rounded-full bg-green-500/10 text-green-600 dark:text-green-400">
+                    <CheckCircle2 className="size-6" />
+                  </span>
+                ) : uploadState.status === "error" ? (
+                  <span className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                    <AlertCircle className="size-6" />
+                  </span>
                 ) : (
                   <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <UploadCloud className="size-6" />
                   </span>
                 )}
+
                 <p className="mt-4 text-sm font-medium">
-                  {loading
-                    ? "Processing dataset..."
-                    : "Drag & drop your CSV here, or click to browse"}
+                  {uploadState.status === "loading"
+                    ? "Parsing dataset…"
+                    : uploadState.status === "success"
+                      ? `${uploadState.recordCount} records loaded from ${uploadState.fileName}`
+                      : uploadState.status === "error"
+                        ? "Upload failed — click to try again"
+                        : "Drag & drop your CSV here, or click to browse"}
                 </p>
+
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Supports .csv up to 10MB. Demo uses sample data.
+                  {uploadState.status === "error"
+                    ? uploadState.message
+                    : uploadState.status === "success"
+                      ? "Drop a new file to replace, or clear to return to sample data."
+                      : "Supports .csv up to 10 MB. Flexible column names — see examples below."}
                 </p>
-                {fileName && !loading && (
-                  <span className="mt-4 inline-flex items-center gap-2 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground">
-                    <FileSpreadsheet className="size-4 text-primary" />
-                    {fileName} loaded — showing sample data
-                  </span>
+
+                {uploadState.status === "success" && uploadState.warnings.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {uploadState.warnings.map((w) => (
+                      <span
+                        key={w}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-yellow-500/10 px-2.5 py-1 text-xs text-yellow-700 dark:text-yellow-400"
+                      >
+                        <AlertCircle className="size-3 shrink-0" />
+                        {w}
+                      </span>
+                    ))}
+                  </div>
                 )}
               </label>
+
+              {uploadState.status === "idle" && (
+                <p className="text-xs text-muted-foreground">
+                  Expected columns (flexible naming):{" "}
+                  <span className="font-mono">field, region, organic_carbon, nitrogen, phosphorus, potassium, ph, moisture</span>
+                </p>
+              )}
+
+              {(uploadState.status === "success" || uploadState.status === "error") && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 text-xs"
+                    onClick={clearUpload}
+                  >
+                    <X className="size-3" />
+                    Clear &amp; use sample data
+                  </Button>
+                  {uploadState.status === "success" && (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <FileSpreadsheet className="size-3.5 text-primary" />
+                      Showing live CSV data
+                    </span>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -190,7 +283,18 @@ export default function DashboardPage() {
         {/* Dataset table */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
-            <CardTitle className="text-base">Dataset Preview</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base">Dataset Preview</CardTitle>
+              {csvData ? (
+                <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+                  CSV
+                </span>
+              ) : (
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  Sample
+                </span>
+              )}
+            </div>
             <div className="relative w-full max-w-xs">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
