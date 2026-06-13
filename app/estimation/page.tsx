@@ -13,11 +13,11 @@ export default function EstimationPage() {
   const { soilData, isUploadedData, farmArea: contextFarmArea, setFarmArea: setContextFarmArea } = useSoil()
 
   const baseStats = useMemo(() => getStats(soilData, 1), [soilData])
-  const [organicCarbon, setOrganicCarbon] = useState(baseStats.avgOrganicCarbon)
+  const [organicCarbon, setOrganicCarbon] = useState<number>(baseStats.avgOrganicCarbon ?? 2.0)
   const [farmArea, setFarmArea] = useState(contextFarmArea)
 
   useEffect(() => {
-    setOrganicCarbon(baseStats.avgOrganicCarbon)
+    setOrganicCarbon(baseStats.avgOrganicCarbon ?? 2.0)
   }, [baseStats.avgOrganicCarbon])
 
   function handleFarmAreaChange(val: number) {
