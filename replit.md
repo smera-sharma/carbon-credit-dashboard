@@ -11,14 +11,25 @@ A Next.js 16 web application for sustainable agriculture analytics. Users can up
 - **Charts**: Recharts
 - **Theming**: next-themes (dark/light mode)
 
-## Pages
+## Pages (4 total)
 
-- `/` — Landing page with hero section
-- `/dashboard` — Overview stats and charts
-- `/estimation` — Carbon credit estimation tool
-- `/analytics` — Detailed analytics charts
-- `/recommendations` — Sustainability recommendations
-- `/report` — Exportable report view
+- `/` — Home: explains SOC and carbon credits, links to all sections, CTA to Dashboard
+- `/dashboard` — Soil Analysis: SOC/pH/Clay/Soil Quality stats, 3 charts (SOC line, properties bar, SOC distribution histogram), CSV upload, soil health insights. **No carbon credit calculations.**
+- `/simulator` — Carbon Credit Simulator: Farm Area + Soil Depth inputs (defaults: 5 ha, 30 cm), formula `Carbon Credits = SOC × Area × (Depth/30) × 3.67`, credits-vs-area chart, top 10 sites chart, scenario insights
+- `/recommendations` — Recommendations & Report: SOC-level recommendations (High/Moderate/Low), Key Findings summary, Download Report button, disclaimer
+
+## Dataset
+
+- **Sample**: 227 real LimeSoDa field measurements (CC BY-SA 4.0) — BB.51 (Coastal Valley), BB.72 (Coastal Plains), G.104 (Highland Ridge)
+- **Fields**: `SOC_target → organicCarbon`, `pH_target → ph`, `Clay_target → clay`, `Altitude → altitude`, `Slope → slope`
+- **CSV Upload**: SOC column is mandatory (`SOC_target`, `SOC`, `Organic_Carbon`, or `Soil_Organic_Carbon`). Optional: pH, Clay, Altitude, Slope. Active dataset shared across all pages via context.
+
+## Carbon Formula
+
+```
+Carbon Stock (tC)    = avgSOC% × farmArea × (soilDepth / 30)
+Carbon Credits (tCO₂e) = Carbon Stock × 3.67
+```
 
 ## Running the App
 

@@ -9,12 +9,10 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 const links = [
-  { href: "/", label: "Home" },
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/estimation", label: "Estimation" },
-  { href: "/analytics", label: "Analytics" },
+  { href: "/",               label: "Home"            },
+  { href: "/dashboard",      label: "Dashboard"       },
+  { href: "/simulator",      label: "Simulator"       },
   { href: "/recommendations", label: "Recommendations" },
-  { href: "/report", label: "Report" },
 ]
 
 function ThemeToggle() {

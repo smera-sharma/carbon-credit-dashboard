@@ -249,11 +249,8 @@ export const sampleSoilData: SoilRecord[] = [
   { id: 227, field: "Site 227", region: "Highland Ridge",  organicCarbon: 1.523, ph: 6.56, clay: 39.4, altitude: 794.8, slope: 0.6407, nitrogen: null, phosphorus: null, potassium: null, moisture: null },
 ]
 
-export const CARBON_CREDIT_FACTOR = 0.8
-
 const round = (n: number, d = 1) => Number(n.toFixed(d))
 
-/** Average only the non-null, finite values for a given key. Returns null if none exist. */
 function nullableAvg(data: SoilRecord[], key: keyof SoilRecord): number | null {
   const vals = data
     .map((r) => r[key] as number | null)
@@ -261,7 +258,8 @@ function nullableAvg(data: SoilRecord[], key: keyof SoilRecord): number | null {
   return vals.length > 0 ? vals.reduce((s, v) => s + v, 0) / vals.length : null
 }
 
-export function getStats(data: SoilRecord[], farmArea: number) {
+// ─── Soil Analysis Stats (no carbon credit calculations) ───────────────────────
+export function getStats(data: SoilRecord[]) {
   const totalRecords = data.length
 
   const avgOrganicCarbon = nullableAvg(data, "organicCarbon")
@@ -274,33 +272,19 @@ export function getStats(data: SoilRecord[], farmArea: number) {
   const avgPotassium     = nullableAvg(data, "potassium")
   const avgMoisture      = nullableAvg(data, "moisture")
 
-  const carbonCredits =
-    avgOrganicCarbon !== null ? avgOrganicCarbon * farmArea * CARBON_CREDIT_FACTOR : 0
-  const co2Offset = carbonCredits
-
-  // Sustainability score: dynamically re-weighted so missing columns don't
-  // drag the score toward 0 — available indicators are scaled proportionally to 100.
+  // Soil Quality Score: dynamically weighted across available indicators
   const indicators = [
-    // SOC: target ≥ 3 % for high carbon sequestration (weight 40)
     { weight: 40, value: avgOrganicCarbon !== null ? Math.min(avgOrganicCarbon / 3, 1) : null },
-    // pH: optimal 6.0–7.0 (weight 25)
     { weight: 25, value: avgPh !== null ? 1 - Math.min(Math.abs(avgPh - 6.5) / 2.5, 1) : null },
-    // Clay: optimal 20–45 % (weight 20)
     { weight: 20, value: avgClay !== null
-        ? avgClay < 20
-          ? avgClay / 20
-          : avgClay <= 45
-            ? 1
-            : Math.max(0, 1 - (avgClay - 45) / 20)
+        ? avgClay < 20 ? avgClay / 20 : avgClay <= 45 ? 1 : Math.max(0, 1 - (avgClay - 45) / 20)
         : null },
-    // Slope: lower is better for soil retention (weight 10)
-    { weight: 10, value: avgSlope !== null ? Math.max(0, 1 - avgSlope / 1.5) : null },
-    // Nitrogen: if available (weight 5)
-    { weight: 5,  value: avgNitrogen !== null ? Math.min(avgNitrogen / 70, 1) : null },
+    { weight: 10, value: avgSlope   !== null ? Math.max(0, 1 - avgSlope / 1.5)  : null },
+    { weight: 5,  value: avgNitrogen!== null ? Math.min(avgNitrogen / 70, 1)    : null },
   ]
   const available   = indicators.filter((i) => i.value !== null)
   const totalWeight = available.reduce((s, i) => s + i.weight, 0)
-  const sustainabilityScore =
+  const soilQualityScore =
     totalWeight > 0
       ? Math.round((available.reduce((s, i) => s + i.value! * i.weight, 0) / totalWeight) * 100)
       : 0
@@ -308,17 +292,31 @@ export function getStats(data: SoilRecord[], farmArea: number) {
   return {
     totalRecords,
     avgOrganicCarbon: avgOrganicCarbon !== null ? round(avgOrganicCarbon, 2) : null,
-    carbonCredits:    round(carbonCredits, 1),
-    co2Offset:        round(co2Offset, 1),
-    sustainabilityScore,
-    avgPh:            avgPh         !== null ? round(avgPh, 2)         : null,
-    avgClay:          avgClay       !== null ? round(avgClay, 1)       : null,
-    avgAltitude:      avgAltitude   !== null ? round(avgAltitude, 1)   : null,
-    avgSlope:         avgSlope      !== null ? round(avgSlope, 4)      : null,
-    avgNitrogen:      avgNitrogen   !== null ? round(avgNitrogen)      : null,
-    avgPhosphorus:    avgPhosphorus !== null ? round(avgPhosphorus)    : null,
-    avgPotassium:     avgPotassium  !== null ? round(avgPotassium)     : null,
-    avgMoisture:      avgMoisture   !== null ? round(avgMoisture)      : null,
+    avgPh:            avgPh            !== null ? round(avgPh, 2)            : null,
+    avgClay:          avgClay          !== null ? round(avgClay, 1)          : null,
+    avgAltitude:      avgAltitude      !== null ? round(avgAltitude, 1)      : null,
+    avgSlope:         avgSlope         !== null ? round(avgSlope, 4)         : null,
+    avgNitrogen:      avgNitrogen      !== null ? round(avgNitrogen)         : null,
+    avgPhosphorus:    avgPhosphorus    !== null ? round(avgPhosphorus)       : null,
+    avgPotassium:     avgPotassium     !== null ? round(avgPotassium)        : null,
+    avgMoisture:      avgMoisture      !== null ? round(avgMoisture)         : null,
+    soilQualityScore,
+  }
+}
+
+// ─── Carbon Credit Simulator Stats ────────────────────────────────────────────
+// Formula: Carbon Stock (tC) = avgSOC% × farmArea × (soilDepth / 30)
+//          Carbon Credits (tCO₂e) = Carbon Stock × 3.67
+export function getSimulatorStats(data: SoilRecord[], farmArea: number, soilDepth: number) {
+  const avgSOC = nullableAvg(data, "organicCarbon") ?? 0
+  const carbonStock   = round(avgSOC * farmArea * (soilDepth / 30), 2)
+  const carbonCredits = round(carbonStock * 3.67, 2)
+  const co2Equivalent = carbonCredits
+  return {
+    avgSOC:       round(avgSOC, 2),
+    carbonStock,
+    carbonCredits,
+    co2Equivalent,
   }
 }
 
@@ -330,21 +328,41 @@ export type Recommendation = {
 
 export function getRecommendations(stats: ReturnType<typeof getStats>): Recommendation[] {
   const recs: Recommendation[] = []
+  const soc = stats.avgOrganicCarbon
 
-  // SOC
-  if (stats.avgOrganicCarbon === null || stats.avgOrganicCarbon < 2) {
+  // SOC level classification (High ≥ 2.5%, Moderate 1.0–2.5%, Low < 1.0%)
+  if (soc === null || soc < 1.0) {
     recs.push({
-      title: "Increase soil organic carbon",
+      title: "Apply organic amendments",
       description:
-        "SOC is below 2%. Apply compost, biochar, or organic amendments to build carbon stocks and improve credit potential.",
+        "Low SOC (< 1%) signals limited carbon storage. Apply compost, manure, or biochar to rapidly increase organic matter and unlock sequestration potential.",
       impact: "High",
     })
-  } else if (stats.avgOrganicCarbon < 3) {
     recs.push({
-      title: "Continue building organic matter",
+      title: "Switch to reduced or no-till",
       description:
-        "SOC is good but below the 3% target. Sustained cover cropping and reduced tillage will push sequestration higher.",
+        "Tillage destroys soil aggregates and releases stored carbon. No-till or strip-till preserves SOC and improves long-term credit potential.",
+      impact: "High",
+    })
+  } else if (soc < 2.5) {
+    recs.push({
+      title: "Adopt composting practices",
+      description:
+        "Moderate SOC (1–2.5%). Regularly adding quality compost feeds soil microbes and steadily builds organic carbon over multiple seasons.",
       impact: "Medium",
+    })
+    recs.push({
+      title: "Establish cover crops",
+      description:
+        "Cover crops protect bare soil between seasons, fix nitrogen, and continuously donate biomass that microbes convert to stable humus.",
+      impact: "Medium",
+    })
+  } else {
+    recs.push({
+      title: "Maintain current management practices",
+      description:
+        "High SOC (≥ 2.5%) — your soil is storing carbon effectively. Continue current practices and document them to support carbon credit verification.",
+      impact: "Low",
     })
   }
 
@@ -353,7 +371,7 @@ export function getRecommendations(stats: ReturnType<typeof getStats>): Recommen
     recs.push({
       title: "Apply lime to correct soil acidity",
       description:
-        "Average pH is below 5.5. Targeted lime application will improve nutrient availability and microbial activity critical for carbon cycling.",
+        `Average pH ${stats.avgPh} is below 5.5. Lime application improves nutrient availability and supports the microbial activity essential for carbon cycling.`,
       impact: "High",
     })
   }
@@ -363,14 +381,14 @@ export function getRecommendations(stats: ReturnType<typeof getStats>): Recommen
     recs.push({
       title: "Improve soil structure with organic inputs",
       description:
-        "Low clay content limits water retention and carbon stabilisation. Incorporating compost and green manures will improve soil aggregation.",
+        "Low clay content limits water retention and carbon stabilisation. Incorporating compost and green manures builds aggregation over time.",
       impact: "Medium",
     })
   } else if (stats.avgClay !== null && stats.avgClay > 50) {
     recs.push({
       title: "Address drainage in high-clay soils",
       description:
-        "Very high clay content can cause waterlogging. Subsoil drainage and gypsum applications will improve aeration and root depth.",
+        "Very high clay content causes waterlogging that impedes root growth and SOC decomposition. Subsoil drainage and gypsum applications will improve conditions.",
       impact: "Medium",
     })
   }
@@ -378,41 +396,12 @@ export function getRecommendations(stats: ReturnType<typeof getStats>): Recommen
   // Slope
   if (stats.avgSlope !== null && stats.avgSlope > 0.4) {
     recs.push({
-      title: "Implement contour farming and erosion control",
+      title: "Implement erosion control on sloped areas",
       description:
-        "Higher slopes increase erosion risk. Contour ploughing, grass buffer strips, and cover crops will protect SOC and reduce runoff.",
+        "Elevated slope increases erosion risk and SOC losses. Contour ploughing, grass buffer strips, and cover crops protect carbon and reduce runoff.",
       impact: stats.avgSlope > 0.7 ? "High" : "Medium",
     })
   }
 
-  // Always add cover cropping and reduced tillage
-  recs.push({
-    title: "Adopt cover cropping practices",
-    description:
-      "Cover crops protect bare soil, fix nitrogen, and continuously feed soil microbes that build organic carbon year-round.",
-    impact: "Medium",
-  })
-  recs.push({
-    title: "Reduce tillage intensity",
-    description:
-      "No-till or strip-till preserves soil aggregates, keeps sequestered carbon in the ground, and reduces fuel costs.",
-    impact: "Medium",
-  })
-
   return recs
 }
-
-export const carbonTrend = [
-  { month: "Jan", organicCarbon: 1.1 },
-  { month: "Feb", organicCarbon: 1.15 },
-  { month: "Mar", organicCarbon: 1.2 },
-  { month: "Apr", organicCarbon: 1.25 },
-  { month: "May", organicCarbon: 1.32 },
-  { month: "Jun", organicCarbon: 1.38 },
-  { month: "Jul", organicCarbon: 1.42 },
-  { month: "Aug", organicCarbon: 1.45 },
-  { month: "Sep", organicCarbon: 1.43 },
-  { month: "Oct", organicCarbon: 1.39 },
-  { month: "Nov", organicCarbon: 1.35 },
-  { month: "Dec", organicCarbon: 1.3 },
-]

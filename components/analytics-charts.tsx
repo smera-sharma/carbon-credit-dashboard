@@ -7,13 +7,9 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   XAxis,
   YAxis,
-  Tooltip,
-  Legend,
 } from "recharts"
 import {
   ChartContainer,
@@ -24,30 +20,27 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart"
 import type { SoilRecord } from "@/lib/soil-data"
-import { getStats } from "@/lib/soil-data"
-import { BarChart3, LineChart, PieChart as PieIcon, UploadCloud } from "lucide-react"
+import { UploadCloud } from "lucide-react"
 
 // ─── Empty state ─────────────────────────────────────────────────────────────
 
 function EmptyChart({ label }: { label: string }) {
   return (
-    <div className="flex h-72 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border text-muted-foreground">
+    <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border text-muted-foreground">
       <UploadCloud className="size-8 opacity-40" />
       <p className="text-sm">{label}</p>
     </div>
   )
 }
 
-// ─── 1. SOC Line Chart ────────────────────────────────────────────────────────
+// ─── 1. SOC Line Chart (dashboard) ───────────────────────────────────────────
 
 const carbonConfig = {
   organicCarbon: { label: "SOC (%)", color: "var(--chart-1)" },
 } satisfies ChartConfig
 
 export function CarbonLineChart({ data }: { data: SoilRecord[] }) {
-  if (!data.length) {
-    return <EmptyChart label="Upload a dataset to see SOC values." />
-  }
+  if (!data.length) return <EmptyChart label="Upload a dataset to see SOC values." />
 
   const chartData = data.map((r) => ({
     name: r.field.length > 14 ? r.field.slice(0, 13) + "…" : r.field,
@@ -55,7 +48,7 @@ export function CarbonLineChart({ data }: { data: SoilRecord[] }) {
   }))
 
   return (
-    <ChartContainer config={carbonConfig} className="h-72 w-full">
+    <ChartContainer config={carbonConfig} className="h-64 w-full">
       <AreaChart data={chartData} margin={{ left: 4, right: 8, top: 8, bottom: 0 }}>
         <defs>
           <linearGradient id="fillCarbon" x1="0" y1="0" x2="0" y2="1">
@@ -72,14 +65,7 @@ export function CarbonLineChart({ data }: { data: SoilRecord[] }) {
           interval={Math.max(0, Math.floor(chartData.length / 10) - 1)}
           tick={{ fontSize: 11 }}
         />
-        <YAxis
-          tickLine={false}
-          axisLine={false}
-          tickMargin={8}
-          width={34}
-          domain={[0, "auto"]}
-          tick={{ fontSize: 11 }}
-        />
+        <YAxis tickLine={false} axisLine={false} tickMargin={8} width={34} domain={[0, "auto"]} tick={{ fontSize: 11 }} />
         <ChartTooltip content={<ChartTooltipContent />} />
         <Area
           dataKey="organicCarbon"
@@ -95,45 +81,37 @@ export function CarbonLineChart({ data }: { data: SoilRecord[] }) {
   )
 }
 
-// ─── 2. Soil Properties Bar Chart (SOC & Clay by region) ─────────────────────
+// ─── 2. Soil Properties Bar Chart — avg SOC, Clay & pH by region (dashboard) ──
 
 const soilPropsConfig = {
-  soc:  { label: "Avg SOC (%)",   color: "var(--chart-1)" },
-  clay: { label: "Avg Clay (%)",  color: "var(--chart-2)" },
-  ph:   { label: "Avg pH",        color: "var(--chart-4)" },
+  soc:  { label: "Avg SOC (%)",  color: "var(--chart-1)" },
+  clay: { label: "Avg Clay (%)", color: "var(--chart-2)" },
+  ph:   { label: "Avg pH",       color: "var(--chart-4)" },
 } satisfies ChartConfig
 
-function buildSoilPropsData(records: SoilRecord[]) {
-  const map = new Map<string, {
-    soc: number; socCount: number
-    clay: number; clayCount: number
-    ph: number; phCount: number
-  }>()
+function buildRegionData(records: SoilRecord[]) {
+  const map = new Map<string, { soc: number; socN: number; clay: number; clayN: number; ph: number; phN: number }>()
   for (const r of records) {
     const key = r.region || "Unknown"
-    const e = map.get(key) ?? { soc: 0, socCount: 0, clay: 0, clayCount: 0, ph: 0, phCount: 0 }
-    if (r.organicCarbon !== null && isFinite(r.organicCarbon)) { e.soc  += r.organicCarbon; e.socCount  += 1 }
-    if (r.clay          !== null && isFinite(r.clay))          { e.clay += r.clay;          e.clayCount += 1 }
-    if (r.ph            !== null && isFinite(r.ph))            { e.ph   += r.ph;            e.phCount   += 1 }
+    const e = map.get(key) ?? { soc: 0, socN: 0, clay: 0, clayN: 0, ph: 0, phN: 0 }
+    if (r.organicCarbon !== null && isFinite(r.organicCarbon)) { e.soc  += r.organicCarbon; e.socN  += 1 }
+    if (r.clay          !== null && isFinite(r.clay))          { e.clay += r.clay;          e.clayN += 1 }
+    if (r.ph            !== null && isFinite(r.ph))            { e.ph   += r.ph;            e.phN   += 1 }
     map.set(key, e)
   }
   return Array.from(map.entries()).map(([region, e]) => ({
-    region:  region.length > 14 ? region.slice(0, 13) + "…" : region,
-    soc:     e.socCount  > 0 ? Math.round((e.soc  / e.socCount)  * 100) / 100 : undefined,
-    clay:    e.clayCount > 0 ? Math.round(e.clay  / e.clayCount)              : undefined,
-    ph:      e.phCount   > 0 ? Math.round((e.ph   / e.phCount)   * 100) / 100 : undefined,
+    region: region.length > 14 ? region.slice(0, 13) + "…" : region,
+    soc:    e.socN  > 0 ? Math.round((e.soc  / e.socN)  * 100) / 100 : undefined,
+    clay:   e.clayN > 0 ? Math.round(e.clay  / e.clayN)              : undefined,
+    ph:     e.phN   > 0 ? Math.round((e.ph   / e.phN)   * 100) / 100 : undefined,
   }))
 }
 
 export function NutrientBarChart({ data }: { data: SoilRecord[] }) {
-  if (!data.length) {
-    return <EmptyChart label="Upload a dataset to see soil properties by region." />
-  }
-
-  const chartData = buildSoilPropsData(data)
-
+  if (!data.length) return <EmptyChart label="Upload a dataset to see soil properties by region." />
+  const chartData = buildRegionData(data)
   return (
-    <ChartContainer config={soilPropsConfig} className="h-72 w-full">
+    <ChartContainer config={soilPropsConfig} className="h-64 w-full">
       <BarChart data={chartData} margin={{ left: 4, right: 8, top: 8, bottom: 0 }}>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
         <XAxis dataKey="region" tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 11 }} />
@@ -148,59 +126,148 @@ export function NutrientBarChart({ data }: { data: SoilRecord[] }) {
   )
 }
 
-// ─── 3. Sustainability Score Pie Chart ────────────────────────────────────────
+// ─── 3. SOC Distribution Histogram (dashboard) ───────────────────────────────
 
-const scoreConfig = {
-  count:     { label: "Sites" },
-  excellent: { label: "Excellent (80+)",  color: "var(--chart-1)" },
-  good:      { label: "Good (60–79)",     color: "var(--chart-2)" },
-  fair:      { label: "Fair (40–59)",     color: "var(--chart-4)" },
-  poor:      { label: "Needs Work (<40)", color: "var(--chart-5)" },
+const distConfig = {
+  count: { label: "Sites", color: "var(--chart-1)" },
 } satisfies ChartConfig
 
-function buildScoreDistribution(records: SoilRecord[]) {
-  const buckets = { excellent: 0, good: 0, fair: 0, poor: 0 }
-  for (const r of records) {
-    const { sustainabilityScore } = getStats([r], 1)
-    if      (sustainabilityScore >= 80) buckets.excellent += 1
-    else if (sustainabilityScore >= 60) buckets.good      += 1
-    else if (sustainabilityScore >= 40) buckets.fair      += 1
-    else                                buckets.poor      += 1
-  }
-  return [
-    { key: "excellent", label: "Excellent (80+)",  count: buckets.excellent },
-    { key: "good",      label: "Good (60–79)",     count: buckets.good      },
-    { key: "fair",      label: "Fair (40–59)",     count: buckets.fair      },
-    { key: "poor",      label: "Needs Work (<40)", count: buckets.poor      },
-  ].filter((b) => b.count > 0)
-}
+const SOC_BINS = [
+  { label: "< 0.5%",   min: -Infinity, max: 0.5  },
+  { label: "0.5–1.0%", min: 0.5,       max: 1.0  },
+  { label: "1.0–1.5%", min: 1.0,       max: 1.5  },
+  { label: "1.5–2.0%", min: 1.5,       max: 2.0  },
+  { label: "2.0–2.5%", min: 2.0,       max: 2.5  },
+  { label: "2.5–3.0%", min: 2.5,       max: 3.0  },
+  { label: "≥ 3.0%",   min: 3.0,       max: Infinity },
+]
 
-export function SustainabilityPieChart({ data }: { data: SoilRecord[] }) {
-  if (!data.length) {
-    return <EmptyChart label="Upload a dataset to see score distribution." />
-  }
+export function SOCDistributionChart({ data }: { data: SoilRecord[] }) {
+  if (!data.length) return <EmptyChart label="Upload a dataset to see SOC distribution." />
 
-  const chartData = buildScoreDistribution(data)
+  const counts = SOC_BINS.map((bin) => ({
+    range: bin.label,
+    count: data.filter((r) => r.organicCarbon !== null && r.organicCarbon > bin.min && r.organicCarbon <= bin.max).length,
+  }))
 
   return (
-    <ChartContainer config={scoreConfig} className="mx-auto aspect-square h-72">
-      <PieChart>
-        <ChartTooltip content={<ChartTooltipContent nameKey="label" />} />
-        <Pie
-          data={chartData}
-          dataKey="count"
-          nameKey="label"
-          innerRadius={58}
-          outerRadius={100}
-          strokeWidth={2}
-          paddingAngle={2}
-        >
-          {chartData.map((entry) => (
-            <Cell key={entry.key} fill={`var(--color-${entry.key})`} />
+    <ChartContainer config={distConfig} className="h-64 w-full">
+      <BarChart data={counts} margin={{ left: 4, right: 8, top: 8, bottom: 0 }}>
+        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+        <XAxis dataKey="range" tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 10 }} />
+        <YAxis tickLine={false} axisLine={false} tickMargin={8} width={30} tick={{ fontSize: 11 }} allowDecimals={false} />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Bar dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]}>
+          {counts.map((entry, i) => (
+            <Cell
+              key={`cell-${i}`}
+              fill={
+                i === 0 ? "var(--chart-5)" :
+                i <= 1  ? "var(--chart-4)" :
+                i <= 3  ? "var(--chart-1)" :
+                           "var(--chart-2)"
+              }
+            />
           ))}
-        </Pie>
-        <ChartLegend content={<ChartLegendContent nameKey="label" />} />
-      </PieChart>
+        </Bar>
+      </BarChart>
+    </ChartContainer>
+  )
+}
+
+// ─── 4. Credits vs Farm Area Chart (simulator) ────────────────────────────────
+
+const simAreaConfig = {
+  credits: { label: "Carbon Credits (tCO₂e)", color: "var(--chart-1)" },
+} satisfies ChartConfig
+
+export function SimulatorAreaChart({
+  avgSOC,
+  soilDepth,
+  currentFarmArea,
+}: {
+  avgSOC: number
+  soilDepth: number
+  currentFarmArea: number
+}) {
+  const areas = [1, 2, 5, 10, 15, 20, 30, 40, 50, 75, 100]
+  const chartData = areas.map((area) => ({
+    area,
+    credits: Math.round(avgSOC * area * (soilDepth / 30) * 3.67 * 100) / 100,
+    current: area === currentFarmArea ? Math.round(avgSOC * area * (soilDepth / 30) * 3.67 * 100) / 100 : undefined,
+  }))
+
+  return (
+    <ChartContainer config={simAreaConfig} className="h-64 w-full">
+      <AreaChart data={chartData} margin={{ left: 4, right: 8, top: 8, bottom: 0 }}>
+        <defs>
+          <linearGradient id="fillCredits" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="var(--color-credits)" stopOpacity={0.4} />
+            <stop offset="95%" stopColor="var(--color-credits)" stopOpacity={0.03} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+        <XAxis
+          dataKey="area"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          tick={{ fontSize: 11 }}
+          label={{ value: "Farm Area (ha)", position: "insideBottom", offset: -2, fontSize: 11 }}
+          height={36}
+        />
+        <YAxis tickLine={false} axisLine={false} tickMargin={8} width={48} tick={{ fontSize: 11 }} />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Area
+          dataKey="credits"
+          type="monotone"
+          stroke="var(--color-credits)"
+          strokeWidth={2}
+          fill="url(#fillCredits)"
+          dot={{ r: 3, fill: "var(--color-credits)" }}
+          activeDot={{ r: 5 }}
+        />
+      </AreaChart>
+    </ChartContainer>
+  )
+}
+
+// ─── 5. Top 10 Sites by Carbon Potential (simulator) ─────────────────────────
+
+const topConfig = {
+  credits: { label: "Carbon Credits (tCO₂e)", color: "var(--chart-2)" },
+} satisfies ChartConfig
+
+export function TopSitesBarChart({
+  data,
+  farmArea,
+  soilDepth,
+}: {
+  data: SoilRecord[]
+  farmArea: number
+  soilDepth: number
+}) {
+  if (!data.length) return <EmptyChart label="No data available." />
+
+  const factor = farmArea * (soilDepth / 30) * 3.67
+  const top10 = [...data]
+    .filter((r) => r.organicCarbon !== null && isFinite(r.organicCarbon))
+    .sort((a, b) => (b.organicCarbon ?? 0) - (a.organicCarbon ?? 0))
+    .slice(0, 10)
+    .map((r) => ({
+      field:   r.field.length > 10 ? r.field.slice(0, 9) + "…" : r.field,
+      credits: Math.round((r.organicCarbon ?? 0) * factor * 100) / 100,
+    }))
+
+  return (
+    <ChartContainer config={topConfig} className="h-64 w-full">
+      <BarChart data={top10} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
+        <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+        <XAxis type="number" tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 11 }} />
+        <YAxis type="category" dataKey="field" tickLine={false} axisLine={false} width={60} tick={{ fontSize: 11 }} />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Bar dataKey="credits" fill="var(--color-credits)" radius={[0, 4, 4, 0]} maxBarSize={20} />
+      </BarChart>
     </ChartContainer>
   )
 }

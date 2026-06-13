@@ -1,0 +1,151 @@
+Refactor the existing Carbon Credit Estimator Dashboard to improve usability and eliminate redundant sections.
+
+The application should be reorganized into ONLY 4 pages with distinct purposes:
+
+## 1. Home Page
+
+Purpose: Introduce the project.
+
+Requirements:
+
+* Explain what carbon credits are and why Soil Organic Carbon (SOC) matters.
+* Briefly describe how the dashboard helps users analyze soil data and estimate carbon potential.
+* Include a call-to-action button that navigates to the Dashboard page.
+* Mention that the application ships with a built-in sample SOC dataset while also supporting compatible user-uploaded datasets.
+
+---
+
+## 2. Dashboard (Soil Analysis)
+
+Purpose: Analyze the existing soil conditions.
+
+Use the active dataset (sample dataset by default).
+
+Display:
+
+* Average Soil Organic Carbon (SOC)
+* Average Soil pH
+* Average Clay Percentage
+* Total Number of Samples
+* Soil Quality Score
+
+Charts:
+
+* Line chart showing SOC values across samples.
+* Bar chart comparing average SOC, pH, and Clay values.
+* SOC distribution chart.
+
+Insights:
+
+* Generate short soil health insights based on the dataset.
+* Display sustainability observations.
+
+This page should focus ONLY on understanding the soil data and should NOT display carbon credit calculations.
+
+---
+
+## 3. Carbon Credit Simulator
+
+Purpose: Estimate future carbon credit potential.
+
+Allow users to modify:
+
+* Farm Area (hectares)
+* Soil Depth (cm)
+
+Default values:
+
+* Farm Area = 5 hectares
+* Soil Depth = 30 cm
+
+Use the formula:
+
+Carbon Stock = SOC_target × Farm Area × (Soil Depth / 30)
+
+Carbon Credits = Carbon Stock × 3.67
+
+Display:
+
+* Estimated Carbon Stock
+* Estimated Carbon Credits
+* Estimated CO₂ Equivalent
+
+Charts:
+
+* Carbon credits vs Farm Area.
+* Top 10 samples with the highest carbon credit potential.
+
+Add scenario-based insights explaining how changing farm area or soil depth affects the estimates.
+
+This page should focus ONLY on carbon estimation and simulation and should NOT repeat soil analysis metrics.
+
+---
+
+## 4. Recommendations & Report
+
+Purpose: Provide actionable recommendations and summarize findings.
+
+Recommendations:
+Generate recommendations based on SOC values.
+
+Examples:
+
+* High SOC → Maintain current practices.
+* Moderate SOC → Encourage composting and cover cropping.
+* Low SOC → Recommend organic amendments and reduced tillage.
+
+Summary Section:
+
+* Key findings from the dataset.
+* Estimated carbon credit potential.
+* Major soil observations.
+
+Report:
+
+* Include a "Download Report" button placeholder (UI only if backend functionality is unavailable).
+
+Disclaimer:
+Display prominently:
+
+"Carbon credit estimates are intended for educational and analytical purposes only and should not be used for official carbon certification or financial decisions."
+
+---
+
+DATASET REQUIREMENTS:
+
+* Use the integrated SOC dataset as the default sample dataset.
+
+* Retain only the following fields:
+
+  * SOC_target
+  * pH_target
+  * Clay_target
+  * Altitude
+  * Slope
+
+* Ignore satellite band columns and unrelated metadata.
+
+* If CSV upload functionality exists, validate uploaded datasets and ensure they contain one of the following mandatory SOC fields:
+
+  * SOC_target
+  * SOC
+  * Organic_Carbon
+  * Soil_Organic_Carbon
+
+* If SOC data is missing, reject the upload and continue using the sample dataset.
+
+* Display the active data source:
+
+  * "Using Sample SOC Dataset"
+  * "Using Uploaded Dataset"
+
+---
+
+GENERAL REQUIREMENTS:
+
+* Remove duplicate metrics and redundant sections from the current application.
+* Ensure that each page has a unique purpose.
+* Maintain the existing visual style and branding.
+* Preserve responsiveness and mobile compatibility.
+* Use clean component organization and reusable code.
+* Explain all code changes and list the files modified after implementation.
